@@ -80,6 +80,55 @@ which DO encrypts at rest, instead of the unencrypted droplet root disk.
 > Note: this encrypts the **live database** disk. Backups are covered separately
 > (M-4 — ship them off-box and encrypt the dumps).
 
+## Host firewall — lock down the droplet (VAPT H-3)
+The droplet has **no firewall** (`ufw` inactive, iptables `INPUT` policy `ACCEPT`)
+and exposes many services to the internet on `0.0.0.0`:
+`22, 80, 443, 3000, 3002, 4000-4013, 4998`. The 3000 / 4000-series / 4998 ports are
+*other* applications (HRMS, urbanwerkz, vorkhive) sharing the same box as the MCTS
+database — so a compromise of any one of them is a pivot to the billing data. Only
+`80` and `443` (nginx) and `22` (SSH, ideally restricted) need to face the internet.
+
+Use a **DigitalOcean Cloud Firewall** (recommended — it sits in front of the droplet,
+so a misconfig can't lock you out at the OS level and it survives reboots/rebuilds).
+
+### Option A — DigitalOcean Cloud Firewall (recommended)
+1. DO panel → **Networking → Firewalls → Create Firewall**.
+2. **Inbound rules** (everything else is denied by default):
+   - `HTTP`  TCP `80`  — sources: `All IPv4, All IPv6`
+   - `HTTPS` TCP `443` — sources: `All IPv4, All IPv6`
+   - `SSH`   TCP `22`  — sources: **your admin IP(s) only** (e.g. office/VPN). Avoid
+     leaving 22 open to the world; `fail2ban` is active but source-restriction is better.
+3. **Outbound rules:** leave the defaults (allow all) unless you have a reason to limit.
+4. **Apply to Droplet:** attach the firewall to this droplet (or a tag it carries).
+5. The `3000 / 3002 / 4000-4013 / 4998` ports are simply **not** in the allow-list, so
+   they stop being internet-reachable the moment the firewall is attached.
+
+> Note: a DO Cloud Firewall **overrides** what's bound on `0.0.0.0`; you don't have to
+> change each sibling app. But step B is still worth doing as defense-in-depth.
+
+### Option B — also bind internal services to localhost (defense-in-depth)
+For any service that only nginx (or another local process) needs to reach, bind it to
+`127.0.0.1` instead of `0.0.0.0` so it isn't exposed even without a firewall. For the
+MCTS app this is already done (`127.0.0.1:3010` in `docker-compose.yml`). Audit the
+sibling apps' compose/service configs the same way.
+
+### Option C — host firewall with ufw (if you can't use a Cloud Firewall)
+Set the SSH rule **first** so you don't lock yourself out, then enable:
+
+    ufw allow from <YOUR_ADMIN_IP> to any port 22 proto tcp
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+    ufw --force enable
+    ufw status verbose
+
+> Warning: enabling ufw over an SSH session without the port-22 allow rule will drop
+> your connection. Add the SSH rule first and keep a DO web console session open as a
+> fallback.
+
+### Verify (from off the droplet)
+    nmap -Pn -p 22,80,443,3000,3002,4000-4013,4998 <droplet-ip>
+    # expect: 80/443 open; 3000/3002/4000-4013/4998 filtered; 22 filtered except from your IP
+
 ## Backups
 `mcts-db-backup.sh` takes a gzipped `pg_dump`, written atomically, keeping 14 days.
 Deployed copy lives at `/usr/local/bin/mcts-db-backup.sh`, scheduled nightly via cron:
