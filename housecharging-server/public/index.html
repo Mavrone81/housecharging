@@ -183,6 +183,10 @@
   .topbar .pg{font-weight:700;font-size:17px}
   .topbar .rt{display:flex;align-items:center;gap:12px}
   .content{padding:26px 28px 60px;max-width:1080px;width:100%}
+  /* Owner portal has no sidebar — single full-width column with centered content. */
+  .owner-shell{grid-template-columns:1fr}
+  .owner-shell .content{margin-inline:auto}
+  .owner-shell .topbar{padding-inline:max(28px,calc((100% - 1080px)/2))}
 
   .mob-top{display:none}
   .mob-nav{display:none}
@@ -1301,13 +1305,13 @@ function viewOwner(){
       <div id="invoiceArea" style="margin-top:18px"></div>
     </div>`;
   }
-  return `<div class="shell" style="grid-template-columns:1fr">
+  return `<div class="shell owner-shell">
     <div class="main">
-      <div class="mob-top" style="display:flex">
+      <div class="mob-top">
         <div class="side-brand" style="padding:0"><div class="side-logo">${brandMark()}</div><span>${brandName()}</span></div>
         <div style="display:flex;gap:8px;align-items:center">${langBar()}<button class="btn ghost sm" id="logoutBtnM">${svg('logout','icn sm')}</button></div>
       </div>
-      <header class="topbar" style="display:flex">
+      <header class="topbar">
         <div style="display:flex;align-items:center;gap:11px"><div class="side-logo">${brandMark()}</div><div><div class="pg">${t('ownerPortal')}</div><div class="small muted">${t('yourHouse')}: ${esc(session.houseNumber)}${h&&h.cluster?' · '+esc(h.cluster):''}</div></div></div>
         <div class="rt"><div class="user-chip" style="padding:4px 8px"><div class="user-av">${initials(session.username)}</div><div><div class="un">${esc(session.username)}</div><div class="ur">${t('ownerLogin')}</div></div></div>${langBar()}<button class="btn ghost sm" id="logoutBtnT">${svg('logout','icn sm')} ${t('logout')}</button></div>
       </header>

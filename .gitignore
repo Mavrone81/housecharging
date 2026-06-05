@@ -1,3 +1,10 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Database backups — contain real data, never commit
+backups/
+*.sql.gz
+
+# Pasted screenshots
+Screenshot*.png
