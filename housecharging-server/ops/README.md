@@ -91,6 +91,39 @@ database — so a compromise of any one of them is a pivot to the billing data. 
 Use a **DigitalOcean Cloud Firewall** (recommended — it sits in front of the droplet,
 so a misconfig can't lock you out at the OS level and it survives reboots/rebuilds).
 
+### Pre-flight — will this break the other apps? (run BEFORE attaching)
+A Cloud Firewall filters only traffic arriving **from outside** the droplet. nginx keeps
+`80`/`443` open and forwards to each app over **loopback** (`proxy_pass http://127.0.0.1:<port>`),
+and loopback/on-box traffic never crosses the firewall. So any app reached **through nginx
+on 443 is unaffected** — you're only removing the *redundant direct* internet exposure of the
+raw ports. The **only** thing that breaks is an app someone reaches **directly on its port**
+(e.g. `http://<ip>:4001`) rather than via `https://…`. Confirm which case applies first:
+
+    # 1. Every domain nginx serves and where it proxies (the source of truth)
+    sudo nginx -T 2>/dev/null | grep -E 'server_name|listen |proxy_pass'
+
+    # 2. What's listening, and on which interface (0.0.0.0 = public, 127.0.0.1 = local-only)
+    sudo ss -tlnp
+
+    # 3. From your LAPTOP (off the droplet): does any raw port answer directly?
+    nmap -Pn -p 22,80,443,3000,3002,4000-4013,4998 <droplet-ip>
+
+Decision rule:
+- Each app has a `server_name` on 443 and a `proxy_pass` to `127.0.0.1:<port>` → **safe**, the
+  firewall changes nothing for users.
+- An app binds `0.0.0.0:<port>` but is only used via nginx → **safe** (and the firewall closes
+  exactly the exposure H-3 flags).
+- A port is genuinely hit directly from outside (a user, integration, or webhook) → **add an
+  inbound allow rule** for just that port (source-restricted if possible) in Option A, instead
+  of leaving it open to everyone.
+
+### Safe rollout / rollback
+A Cloud Firewall is applied at the hypervisor and is **instantly reversible**: create it →
+attach to the droplet → immediately test (a) each app's public URL and (b) your own SSH. If
+anything misbehaves, **detach** it from the droplet and you're back to the prior state with no
+OS-level changes — then add the missing allow rule and re-attach. Keep a DO **web console**
+session open during the first attach as an SSH fallback.
+
 ### Option A — DigitalOcean Cloud Firewall (recommended)
 1. DO panel → **Networking → Firewalls → Create Firewall**.
 2. **Inbound rules** (everything else is denied by default):
