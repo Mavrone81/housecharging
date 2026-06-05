@@ -326,6 +326,7 @@ const I18N = {
     accPending:"Your account is awaiting administrator approval.",
     accRejected:"Your registration was not approved. Please contact the management office.",
     selectYear:"Year", selectPeriod:"Month", noInvoiceP:"No invoice issued for this period yet.",
+    allYears:"All years", allMonths:"All months", selectMonthsHint:"Tick one or more months, then tap Pay or Download. With none ticked, Pay uses the month you're viewing.", selectMonthsFirst:"Please select at least one month.",
     invoiceFor:"Statement", house:"House", item:"Item", prev:"Previous", curr:"Current", rate:"Rate", amount:"Amount",
     grandTotal:"Total payable", thanks:"Please settle by the due date shown on your statement. Thank you.",
     myInvoices:"My Invoices", myInvSub:"Search or select an invoice to view your statement.",
@@ -395,6 +396,7 @@ const I18N = {
     accPending:"您的账号正在等待管理员审核。",
     accRejected:"您的注册未通过审核，请联系物业办公室。",
     selectYear:"年份", selectPeriod:"月份", noInvoiceP:"该周期暂未出账单。",
+    allYears:"全部年份", allMonths:"全部月份", selectMonthsHint:"勾选一个或多个月份，然后点击支付或下载。未勾选时，支付将使用当前查看的月份。", selectMonthsFirst:"请至少选择一个月份。",
     invoiceFor:"账单", house:"房屋", item:"项目", prev:"上期", curr:"本期", rate:"单价", amount:"金额",
     grandTotal:"应付总额", thanks:"请在账单注明的到期日前完成缴费，谢谢。",
     myInvoices:"我的账单", myInvSub:"搜索或选择账单以查看明细。",
@@ -464,6 +466,7 @@ const I18N = {
     accPending:"บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแล",
     accRejected:"การลงทะเบียนไม่ได้รับอนุมัติ กรุณาติดต่อสำนักงานนิติบุคคล",
     selectYear:"ปี", selectPeriod:"เดือน", noInvoiceP:"ยังไม่มีใบแจ้งหนี้สำหรับรอบนี้",
+    allYears:"ทุกปี", allMonths:"ทุกเดือน", selectMonthsHint:"เลือกเดือนตั้งแต่หนึ่งเดือนขึ้นไป แล้วกดชำระเงินหรือดาวน์โหลด หากไม่ได้เลือก ระบบจะใช้เดือนที่กำลังดูอยู่", selectMonthsFirst:"กรุณาเลือกอย่างน้อยหนึ่งเดือน",
     invoiceFor:"ใบแจ้งหนี้", house:"บ้าน", item:"รายการ", prev:"ครั้งก่อน", curr:"ปัจจุบัน", rate:"อัตรา", amount:"จำนวนเงิน",
     grandTotal:"ยอดชำระทั้งสิ้น", thanks:"กรุณาชำระภายในวันครบกำหนดในใบแจ้งหนี้ ขอบคุณ",
     myInvoices:"ใบแจ้งหนี้ของฉัน", myInvSub:"ค้นหาหรือเลือกใบแจ้งหนี้เพื่อดูรายละเอียด",
@@ -561,6 +564,16 @@ function save(){
       if(d&&d.houses){ db.houses=d.houses.map(normHouse); db.readings=d.readings.map(normReading); applySettings(d.settings); }
     }catch(e){ console.error('save failed',e); alert('Could not save to the server: '+e.message); }
   }, 350);
+}
+// Branding (name/address/logo/PromptPay QR) saves via the dedicated, lightweight
+// /branding endpoint — not the heavy whole-state sync — so large QR/logo images
+// don't bloat (or exceed the size limit of) the state payload.
+async function saveBranding(){
+  if(!session || session.role!=='admin') return;
+  const r=await api('/api/admin/branding',{method:'PUT',body:{
+    communityName:db.settings.communityName, address:db.settings.address,
+    logo:db.settings.logo ?? null, promptPayQr:db.settings.promptPayQr ?? null }});
+  if(r) applySettings(r);
 }
 
 /* ===================== Helpers ===================== */
@@ -1137,31 +1150,34 @@ function adminSettings(){
 }
 function bindSettings(){
   const $=id=>document.getElementById(id);
+  const setMsg=(cls,key)=>{ const m=$('setmsg'); if(m) m.innerHTML=`<div class="notice ${cls}">${t(key)}</div>`; };
   $('logoBtn').onclick=()=>$('logoFile').click();
   $('logoFile').onchange=e=>{
     const f=e.target.files[0]; if(!f)return;
-    if(f.size>1.5*1024*1024){ $('setmsg').innerHTML=`<div class="notice err">${t('logoTooBig')}</div>`; return; }
+    if(f.size>1.5*1024*1024){ setMsg('err','logoTooBig'); return; }
     const rd=new FileReader();
-    rd.onload=()=>{ db.settings.logo=rd.result; save(db); setFavicon(); renderAdminBody(); setTimeout(()=>{const m=$('setmsg');if(m)m.innerHTML=`<div class="notice ok">${t('brandingSaved')}</div>`;},0); };
+    rd.onload=async ()=>{ db.settings.logo=rd.result; try{ await saveBranding(); setFavicon(); renderAdminBody(); setTimeout(()=>setMsg('ok','brandingSaved'),0);}catch(err){ setMsg('err','logoTooBig'); } };
     rd.readAsDataURL(f);
   };
-  if($('logoDel')) $('logoDel').onclick=()=>{ db.settings.logo=null; save(db); setFavicon(); renderAdminBody(); };
+  if($('logoDel')) $('logoDel').onclick=async ()=>{ db.settings.logo=null; await saveBranding(); setFavicon(); renderAdminBody(); };
   $('ppBtn').onclick=()=>$('ppFile').click();
   $('ppFile').onchange=e=>{
     const f=e.target.files[0]; if(!f)return;
-    if(f.size>1.5*1024*1024){ $('setmsg').innerHTML=`<div class="notice err">${t('logoTooBig')}</div>`; return; }
+    if(f.size>1.5*1024*1024){ setMsg('err','logoTooBig'); return; }
     const rd=new FileReader();
-    rd.onload=()=>{ db.settings.promptPayQr=rd.result; save(db); renderAdminBody(); setTimeout(()=>{const m=$('setmsg');if(m)m.innerHTML=`<div class="notice ok">${t('ppSaved')}</div>`;},0); };
+    rd.onload=async ()=>{ db.settings.promptPayQr=rd.result; try{ await saveBranding(); renderAdminBody(); setTimeout(()=>setMsg('ok','ppSaved'),0);}catch(err){ setMsg('err','logoTooBig'); } };
     rd.readAsDataURL(f);
   };
-  if($('ppDel')) $('ppDel').onclick=()=>{ db.settings.promptPayQr=null; save(db); renderAdminBody(); };
-  $('saveSettings').onclick=()=>{ db.settings.communityName=$('cName').value.trim()||'MCTS'; db.settings.address=$('cAddr').value.trim(); save(db); document.title=brandName()+' · Utility Billing';
+  if($('ppDel')) $('ppDel').onclick=async ()=>{ db.settings.promptPayQr=null; await saveBranding(); renderAdminBody(); };
+  $('saveSettings').onclick=async ()=>{ db.settings.communityName=$('cName').value.trim()||'MCTS'; db.settings.address=$('cAddr').value.trim();
+    try{ await saveBranding(); }catch(err){ setMsg('err','logoTooBig'); return; }
+    document.title=brandName()+' · Utility Billing';
     const sb=document.querySelector('.side-brand span'); if(sb)sb.textContent=db.settings.communityName;
-    $('setmsg').innerHTML=`<div class="notice ok">${t('brandingSaved')}</div>`; };
+    setMsg('ok','brandingSaved'); };
 }
 
 /* ===================== OWNER ===================== */
-let ownerPeriod=null, ownerSearch='';
+let ownerPeriod=null, ownerYear='all', ownerMonth='all';
 function viewOwner(){
   const h=houseByNumber(session.houseNumber);
   const myReadings=h?db.readings.filter(r=>r.houseId===h.id):[];
@@ -1171,16 +1187,25 @@ function viewOwner(){
     body=`<div class="card"><div class="empty"><div class="ei">${svg('invoice')}</div>${t('noYear')}</div></div>`;
   } else {
     if(!ownerPeriod||!all.find(r=>r.period===ownerPeriod)) ownerPeriod=all[0].period;
+    const years=[...new Set(all.map(r=>r.period.slice(0,4)))].sort().reverse();
+    const monthsPresent=[...new Set(all.map(r=>r.period.slice(5,7)))].sort();
+    const yearOpts=`<option value="all">${t('allYears')}</option>`+years.map(y=>`<option value="${y}"${y===ownerYear?' selected':''}>${displayYear(y)}</option>`).join('');
+    const monthOpts=`<option value="all">${t('allMonths')}</option>`+monthsPresent.map(m=>`<option value="${m}"${m===ownerMonth?' selected':''}>${MONTHS[lang][parseInt(m,10)-1]}</option>`).join('');
     const rowsHtml=all.map(r=>{const c=calcInvoice(r); const lab=periodLabel(r.period);
-      return `<tr class="own-row ${r.period===ownerPeriod?'active':''}" data-p="${r.period}" data-s="${esc((lab+' '+r.period).toLowerCase())}">
+      return `<tr class="own-row ${r.period===ownerPeriod?'active':''}" data-p="${r.period}">
         <td class="colcheck"><input type="checkbox" class="own-sel" value="${r.period}" onclick="event.stopPropagation()"></td><td><strong>${lab}</strong></td><td>${c.wU}</td><td>${c.gU}</td><td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('');
     body=`<div class="card">
       <h2>${t('myInvoices')}</h2><p class="sub">${t('myInvSub')}</p>
       <div class="rowflex" style="align-items:flex-end;margin-bottom:14px">
-        <div class="field" style="margin:0;flex:1;min-width:200px;max-width:360px"><label>${t('searchInvoices')}</label>
-          <div class="search-wrap">${svg('search','icn sm')}<input id="ownSearch" type="search" placeholder="${t('searchPlaceholderP')}" value="${esc(ownerSearch)}" autocomplete="off"></div></div>
-        <div style="flex:none"><button class="btn ghost" id="ownDl">${svg('doc','icn sm')} ${t('downloadPdf')} <span id="ownDlN"></span></button></div>
+        <div class="field" style="margin:0;flex:none;min-width:120px"><label>${t('selectYear')}</label><select id="ownYear">${yearOpts}</select></div>
+        <div class="field" style="margin:0;flex:none;min-width:140px"><label>${t('selectPeriod')}</label><select id="ownMonth">${monthOpts}</select></div>
+        <div style="flex:1;min-width:8px"></div>
+        <div style="flex:none;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" id="ownPay">${svg('rates','icn sm')} ${t('pay')} <span id="ownPayN"></span></button>
+          <button class="btn ghost" id="ownDl">${svg('doc','icn sm')} ${t('downloadPdf')} <span id="ownDlN"></span></button>
+        </div>
       </div>
+      <p class="help" style="margin:-6px 0 12px">${t('selectMonthsHint')}</p>
       <div class="tbl-wrap"><table><thead><tr><th class="colcheck"><input type="checkbox" id="ownAll"></th><th>${t('period')}</th><th>${t('water')} ${t('usage')}</th><th>${t('gas')} ${t('usage')}</th><th class="right">${t('total')}</th></tr></thead>
         <tbody id="ownRows">${rowsHtml}<tr id="ownNoRes" class="hidden"><td colspan="5"><div class="empty"><div class="ei">${svg('search')}</div>${t('noResults')}</div></td></tr></tbody></table></div>
       <div id="invoiceArea" style="margin-top:18px"></div>
@@ -1209,29 +1234,49 @@ function bindOwner(){
     document.querySelectorAll('.own-row').forEach(x=>x.classList.toggle('active',x===tr));
     drawInvoice();
   });
-  const box=document.getElementById('ownSearch');
-  if(box){
-    const apply=()=>{
-      ownerSearch=box.value;
-      const q=box.value.trim().toLowerCase(); let shown=0;
-      document.querySelectorAll('.own-row').forEach(tr=>{ const m=!q||tr.dataset.s.includes(q); tr.classList.toggle('hidden',!m); if(m)shown++; });
-      const nr=document.getElementById('ownNoRes'); if(nr) nr.classList.toggle('hidden',shown>0);
-    };
-    box.oninput=apply; apply();
-    if(ownerSearch){ box.focus(); box.setSelectionRange(box.value.length,box.value.length); }
-  }
   const h=houseByNumber(session.houseNumber);
   const byP=Object.fromEntries((h?db.readings.filter(r=>r.houseId===h.id):[]).map(r=>[r.period,r]));
   const oall=document.getElementById('ownAll');
   const osels=()=>Array.from(document.querySelectorAll('.own-sel'));
-  const updON=()=>{ const n=osels().filter(c=>c.checked).length; const el=document.getElementById('ownDlN'); if(el)el.textContent=n?`(${n})`:''; if(oall){const tot=osels().length; oall.checked=tot>0&&n===tot; oall.indeterminate=n>0&&n<tot;} };
-  if(oall) oall.onchange=()=>{ osels().forEach(c=>c.checked=oall.checked); updON(); };
+  const visSels=()=>osels().filter(c=>!c.closest('tr').classList.contains('hidden'));
+  const updON=()=>{ const n=osels().filter(c=>c.checked).length;
+    const dn=document.getElementById('ownDlN'); if(dn)dn.textContent=n?`(${n})`:'';
+    const pn=document.getElementById('ownPayN'); if(pn)pn.textContent=n?`(${n})`:'';
+    if(oall){const tot=visSels().length; const cn=visSels().filter(c=>c.checked).length; oall.checked=tot>0&&cn===tot; oall.indeterminate=cn>0&&cn<tot;} };
+  if(oall) oall.onchange=()=>{ visSels().forEach(c=>c.checked=oall.checked); updON(); };
   osels().forEach(c=>c.onchange=updON);
+  // Year + Month dropdown filter.
+  const ySel=document.getElementById('ownYear'), mSel=document.getElementById('ownMonth');
+  const applyFilter=()=>{
+    ownerYear=ySel?ySel.value:'all'; ownerMonth=mSel?mSel.value:'all';
+    let shown=0;
+    document.querySelectorAll('.own-row').forEach(tr=>{
+      const [py,pm]=tr.dataset.p.split('-');
+      const match=(ownerYear==='all'||py===ownerYear)&&(ownerMonth==='all'||pm===ownerMonth);
+      tr.classList.toggle('hidden',!match); if(match)shown++;
+      if(!match){ const cb=tr.querySelector('.own-sel'); if(cb)cb.checked=false; }
+    });
+    const nr=document.getElementById('ownNoRes'); if(nr) nr.classList.toggle('hidden',shown>0);
+    updON();
+  };
+  if(ySel) ySel.onchange=applyFilter;
+  if(mSel) mSel.onchange=applyFilter;
+  applyFilter();
+  // Download selected (or all visible if none selected).
   const odl=document.getElementById('ownDl');
   if(odl) odl.onclick=()=>{
     let ps=osels().filter(c=>c.checked).map(c=>c.value);
-    if(!ps.length) ps=Object.keys(byP).sort().reverse();
-    downloadInvoicesPDF(ps.map(p=>byP[p]));
+    if(!ps.length) ps=visSels().map(c=>c.value);
+    if(!ps.length) return;
+    downloadInvoicesPDF(ps.sort().reverse().map(p=>byP[p]));
+  };
+  // Pay selected month(s) (or the active month if none selected).
+  const opay=document.getElementById('ownPay');
+  if(opay) opay.onclick=()=>{
+    let ps=osels().filter(c=>c.checked).map(c=>c.value);
+    if(!ps.length && ownerPeriod) ps=[ownerPeriod];
+    if(!ps.length){ alert(t('selectMonthsFirst')); return; }
+    openPayModal(ps.sort().reverse());
   };
   updON();
   drawInvoice();
@@ -1265,14 +1310,23 @@ function drawInvoice(){
     <div class="inv-foot-note">${t('thanks')}</div>
   </div>`;
   const b=document.getElementById('stmtDl'); if(b) b.onclick=()=>downloadInvoicesPDF([r]);
-  const pb=document.getElementById('payBtn'); if(pb) pb.onclick=()=>openPayModal(ownerPeriod, c.total);
+  const pb=document.getElementById('payBtn'); if(pb) pb.onclick=()=>openPayModal([ownerPeriod]);
 }
 
-/* PromptPay payment modal: shows the uploaded QR and the amount for the month. */
-function openPayModal(period, amount){
+/* PromptPay payment modal: shows the uploaded QR and the total for the chosen month(s). */
+function openPayModal(periods){
+  periods=(Array.isArray(periods)?periods:[periods]).filter(Boolean);
+  const h=houseByNumber(session.houseNumber);
+  const items=periods.map(p=>{ const r=db.readings.find(x=>x.houseId===h.id&&x.period===p); return r?{p,total:calcInvoice(r).total}:null; }).filter(Boolean);
+  if(!items.length) return;
+  const total=items.reduce((s,i)=>s+i.total,0);
   const qr=(db.settings||{}).promptPayQr||null;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(8,12,20,.62);backdrop-filter:blur(2px);display:grid;place-items:center;z-index:1000;padding:18px';
+  const monthsList = items.length===1
+    ? `<div style="margin-top:6px;color:var(--muted)">${t('payFor')} ${esc(periodLabel(items[0].p))}</div>`
+    : `<div style="margin-top:8px"><div class="lbl" style="margin-bottom:4px">${t('payFor')} · ${items.length} ${t('selectedCount')}</div>
+        <div style="max-height:120px;overflow:auto;border:1px solid var(--line);border-radius:10px">${items.map(i=>`<div style="display:flex;justify-content:space-between;padding:6px 11px;border-bottom:1px solid var(--line)"><span>${esc(periodLabel(i.p))}</span><span class="muted">${money(i.total)}</span></div>`).join('')}</div></div>`;
   const inner=qr
     ? `<div style="margin:14px 0;display:grid;place-items:center"><img src="${qr}" alt="PromptPay QR" style="max-width:280px;max-height:280px;width:100%;border-radius:14px;border:1px solid var(--line)"></div>
        <p class="help" style="text-align:center;margin:0 0 4px">${t('scanToPay')}</p>`
@@ -1282,9 +1336,9 @@ function openPayModal(period, amount){
       <h3 style="margin:0">${t('payTitle')}</h3>
       <button id="payClose" class="btn ghost sm" aria-label="${t('close')}">✕</button>
     </div>
-    <div style="margin-top:6px;color:var(--muted)">${t('payFor')} ${esc(periodLabel(period))}</div>
+    ${monthsList}
     <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:baseline;background:var(--brand-soft);border:1px solid var(--brand-2);border-radius:12px;padding:12px 14px">
-      <span class="lbl">${t('amountDue')}</span><b style="font-size:22px;color:var(--brand-d)">${money(amount)}</b>
+      <span class="lbl">${t('amountDue')}</span><b style="font-size:22px;color:var(--brand-d)">${money(total)}</b>
     </div>
     ${inner}
     <button id="payClose2" class="btn" style="width:100%;margin-top:6px">${t('close')}</button>

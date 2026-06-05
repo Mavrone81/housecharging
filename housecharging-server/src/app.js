@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function createApp() {
   const app = express();
-  app.use(express.json({ limit: '4mb' })); // logo data URLs can be large
+  app.use(express.json({ limit: '12mb' })); // logo + PromptPay QR data URLs can be large
 
   const origins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
   if (origins.length) app.use(cors({ origin: origins }));
