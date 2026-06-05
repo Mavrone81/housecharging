@@ -39,9 +39,17 @@ CREATE TABLE IF NOT EXISTS readings (
   water_curr NUMERIC NOT NULL DEFAULT 0,
   gas_prev   NUMERIC NOT NULL DEFAULT 0,
   gas_curr   NUMERIC NOT NULL DEFAULT 0,
+  paid          BOOLEAN NOT NULL DEFAULT false,
+  paid_at       TIMESTAMPTZ,
+  payment_proof TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (house_id, period)
 );
+
+-- Payment tracking columns (ALTER so existing databases pick them up on re-migrate).
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS paid          BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS paid_at       TIMESTAMPTZ;
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS payment_proof TEXT;
 
 -- Single-row settings table (always id=1): branding, rates and billing formulas.
 CREATE TABLE IF NOT EXISTS settings (

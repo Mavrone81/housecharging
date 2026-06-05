@@ -1,5 +1,13 @@
 import { evalFormula } from './formula.js';
 
+// Shape a raw reading row for API responses: drop the (large) payment_proof blob
+// and expose payment status + a lightweight hasProof flag. The full proof image is
+// fetched on demand via the dedicated /proof endpoints.
+export function publicReading(r) {
+  const { payment_proof, ...rest } = r;
+  return { ...rest, paid: !!r.paid, hasProof: payment_proof != null };
+}
+
 // Compute charges for a single reading row using the stored rates + formula.
 // `settings` is the row from the settings table (numbers may arrive as strings from pg).
 export function computeInvoice(reading, settings) {

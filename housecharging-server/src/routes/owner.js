@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
 import { requireOwner } from '../auth.js';
-import { computeInvoice } from '../invoice.js';
+import { computeInvoice, publicReading } from '../invoice.js';
 
 const router = Router();
 router.use(requireOwner);
@@ -35,7 +35,7 @@ router.get('/bootstrap', async (req, res, next) => {
           const inv = computeInvoice(r, s);
           const waterNo = await invoiceNumber(client, r.id, 'water');
           const gasNo = await invoiceNumber(client, r.id, 'gas');
-          list.push({ ...r, ...inv, waterNo, gasNo });
+          list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
         }
         return list;
       });
@@ -47,6 +47,19 @@ router.get('/bootstrap', async (req, res, next) => {
       house: house ? { houseNumber: house.house_number, cluster: house.cluster, ownerName: house.owner_name } : null,
       invoices,
     });
+  } catch (e) { next(e); }
+});
+
+// Owner views the proof-of-payment image for one of their own readings only.
+router.get('/readings/:id/proof', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT r.payment_proof FROM readings r
+       JOIN houses h ON h.id=r.house_id
+       WHERE r.id=$1 AND lower(h.house_number)=lower($2)`,
+      [req.params.id, req.user.houseNumber]);
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json({ proof: rows[0].payment_proof || null });
   } catch (e) { next(e); }
 });
 

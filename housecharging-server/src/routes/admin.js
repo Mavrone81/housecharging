@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
 import { requireAdmin, hashPassword } from '../auth.js';
-import { computeInvoice } from '../invoice.js';
+import { computeInvoice, publicReading } from '../invoice.js';
 import { isValidFormula, DEFAULT_FORMULA } from '../formula.js';
 
 const router = Router();
@@ -38,7 +38,7 @@ router.get('/bootstrap', async (_req, res, next) => {
         const inv = computeInvoice(r, s);
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
-        list.push({ ...r, ...inv, waterNo, gasNo });
+        list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
       }
       return list;
     });
@@ -132,6 +132,35 @@ router.post('/readings', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// --- Payments: mark a month paid/unpaid and/or attach a proof-of-payment image ---
+router.post('/readings/:id/payment', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const sets = [];
+    const params = [];
+    if (b.paid !== undefined) {
+      params.push(!!b.paid); sets.push(`paid=$${params.length}`);
+      sets.push(`paid_at=${b.paid ? 'now()' : 'NULL'}`);
+    }
+    if (b.proof !== undefined) { params.push(b.proof || null); sets.push(`payment_proof=$${params.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    params.push(req.params.id);
+    const { rows } = await query(
+      `UPDATE readings SET ${sets.join(', ')} WHERE id=$${params.length} RETURNING *`, params);
+    if (!rows.length) return res.status(404).json({ error: 'Reading not found' });
+    res.json(publicReading(rows[0]));
+  } catch (e) { next(e); }
+});
+
+// Fetch the full proof-of-payment image for one reading (kept out of list payloads).
+router.get('/readings/:id/proof', async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT payment_proof FROM readings WHERE id=$1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Reading not found' });
+    res.json({ proof: rows[0].payment_proof || null });
+  } catch (e) { next(e); }
+});
+
 // --- Invoices (computed, with stable numbers) ---
 router.get('/invoices', async (req, res, next) => {
   try {
@@ -151,7 +180,7 @@ router.get('/invoices', async (req, res, next) => {
         const inv = computeInvoice(r, s);
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
-        list.push({ ...r, ...inv, waterNo, gasNo });
+        list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
       }
       return list;
     });
@@ -217,7 +246,7 @@ router.put('/state', async (req, res, next) => {
         const inv = computeInvoice(r, settings);
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
-        list.push({ ...r, ...inv, waterNo, gasNo });
+        list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
       }
       return { settings, houses: hrows, readings: list };
     });

@@ -96,6 +96,9 @@
   .pill.approved{background:var(--ok-soft);color:#15803d}
   .pill.rejected{background:var(--bad-soft);color:#b91c1c}
   .pill.warn{background:var(--bad-soft);color:#b91c1c}
+  .own-row.paid{background:var(--brand-soft)}
+  .own-row.paid td,.own-row.paid strong{color:var(--brand-d)}
+  .own-row.paid.active{box-shadow:inset 3px 0 0 var(--brand)}
   .pill.warn::before{display:none}
 
   /* ---------- stats ---------- */
@@ -307,6 +310,7 @@ const I18N = {
     noPending:"No registration requests.", noMatchHouse:"No matching house",
     approvedMsg:"Owner approved.", rejectedMsg:"Request rejected.",
     addUser:"Add owner account", addUserSub:"Create an owner login directly — it's approved immediately.", create:"Create", resetPw:"Reset password", userCreated:"Owner account created.", pwReset:"Password reset.", newPwFor:"Enter a new password for",
+    tPayments:"Payments", paymentsTitle:"Payment Tracking", paymentsSub:"Confirm payment for each month, mark it paid, and keep the proof of payment.", paid:"Paid", unpaid:"Unpaid", allStatuses:"All statuses", markPaid:"Mark as paid", markUnpaid:"Mark as unpaid", uploadProof:"Upload proof", viewProof:"View proof", proof:"Proof", proofTitle:"Proof of payment", proofSaved:"Proof saved — marked as paid.", paidMsg:"Marked as paid.", unpaidMsg:"Marked as unpaid.", viewReceipt:"View receipt",
     allInvoices:"All Invoices", invoicesSub:"Every calculated statement across the community.",
     filterPeriod:"Period", allPeriods:"All periods", noInvoices:"No invoices for this selection.",
     searchInvoices:"Search", searchPlaceholder:"House number, cluster or owner…", searchPlaceholderP:"Month or year, e.g. April or 2026…", noResults:"No invoices match your search.", allHouses:"All houses",
@@ -377,6 +381,7 @@ const I18N = {
     noPending:"暂无注册申请。", noMatchHouse:"无匹配房屋",
     approvedMsg:"业主已通过审核。", rejectedMsg:"申请已拒绝。",
     addUser:"新增业主账号", addUserSub:"直接创建业主登录账号——立即通过审核。", create:"创建", resetPw:"重置密码", userCreated:"业主账号已创建。", pwReset:"密码已重置。", newPwFor:"请输入新密码：",
+    tPayments:"收款", paymentsTitle:"收款跟踪", paymentsSub:"确认每月付款、标记为已付，并保存付款凭证。", paid:"已付款", unpaid:"未付款", allStatuses:"全部状态", markPaid:"标记为已付", markUnpaid:"标记为未付", uploadProof:"上传凭证", viewProof:"查看凭证", proof:"凭证", proofTitle:"付款凭证", proofSaved:"凭证已保存——已标记为已付。", paidMsg:"已标记为已付。", unpaidMsg:"已标记为未付。", viewReceipt:"查看凭证",
     allInvoices:"全部账单", invoicesSub:"社区内所有已计算的账单。",
     filterPeriod:"周期", allPeriods:"全部周期", noInvoices:"该筛选条件下暂无账单。",
     searchInvoices:"搜索", searchPlaceholder:"门牌号、组团或业主…", searchPlaceholderP:"月份或年份，如 4月 或 2026…", noResults:"没有符合搜索条件的账单。", allHouses:"全部房屋",
@@ -447,6 +452,7 @@ const I18N = {
     noPending:"ไม่มีคำขอลงทะเบียน", noMatchHouse:"ไม่พบบ้านที่ตรงกัน",
     approvedMsg:"อนุมัติเจ้าของบ้านแล้ว", rejectedMsg:"ปฏิเสธคำขอแล้ว",
     addUser:"เพิ่มบัญชีเจ้าของบ้าน", addUserSub:"สร้างบัญชีเข้าสู่ระบบให้เจ้าของบ้านโดยตรง — อนุมัติทันที", create:"สร้าง", resetPw:"รีเซ็ตรหัสผ่าน", userCreated:"สร้างบัญชีเจ้าของบ้านแล้ว", pwReset:"รีเซ็ตรหัสผ่านแล้ว", newPwFor:"กรอกรหัสผ่านใหม่สำหรับ",
+    tPayments:"การชำระเงิน", paymentsTitle:"ติดตามการชำระเงิน", paymentsSub:"ยืนยันการชำระเงินแต่ละเดือน ทำเครื่องหมายว่าชำระแล้ว และเก็บหลักฐานการชำระเงิน", paid:"ชำระแล้ว", unpaid:"ยังไม่ชำระ", allStatuses:"ทุกสถานะ", markPaid:"ทำเครื่องหมายว่าชำระแล้ว", markUnpaid:"ทำเครื่องหมายว่ายังไม่ชำระ", uploadProof:"อัปโหลดหลักฐาน", viewProof:"ดูหลักฐาน", proof:"หลักฐาน", proofTitle:"หลักฐานการชำระเงิน", proofSaved:"บันทึกหลักฐานแล้ว — ทำเครื่องหมายว่าชำระแล้ว", paidMsg:"ทำเครื่องหมายว่าชำระแล้ว", unpaidMsg:"ทำเครื่องหมายว่ายังไม่ชำระ", viewReceipt:"ดูใบเสร็จ",
     allInvoices:"ใบแจ้งหนี้ทั้งหมด", invoicesSub:"ใบแจ้งหนี้ที่คำนวณแล้วทั้งหมดในชุมชน",
     filterPeriod:"รอบ", allPeriods:"ทุกรอบ", noInvoices:"ไม่มีใบแจ้งหนี้ตามที่เลือก",
     searchInvoices:"ค้นหา", searchPlaceholder:"บ้านเลขที่ กลุ่ม หรือเจ้าของ…", searchPlaceholderP:"เดือนหรือปี เช่น เมษายน หรือ 2026…", noResults:"ไม่พบใบแจ้งหนี้ที่ตรงกับการค้นหา", allHouses:"บ้านทั้งหมด",
@@ -512,7 +518,7 @@ let db = {
 const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'' });
 const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:r.period,
   waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
-  waterNo:r.waterNo, gasNo:r.gasNo });
+  waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof });
 const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
 function applySettings(s){
   db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'', promptPayQr:s.promptpay_qr||null };
@@ -540,7 +546,7 @@ async function loadOwner(){
   db.houses=d.house?[{ id:'1', cluster:d.house.cluster||'', houseNumber:d.house.houseNumber, ownerName:d.house.ownerName||'' }]:[];
   db.readings=(d.invoices||[]).map(r=>({ id:String(r.id), houseId:'1', period:r.period,
     waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
-    waterNo:r.waterNo, gasNo:r.gasNo }));
+    waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof }));
 }
 // Whole-state persistence (admin only): houses + readings + settings/rates/formula.
 let _saveTimer=null;
@@ -758,7 +764,7 @@ function bindLanding(){
 
 /* ===================== ADMIN ===================== */
 let adminTab='dash', editHouseId=null;
-const ADMIN_NAV=[['dash','nav_dash','home'],['houses','tHouses','house'],['rates','tRates','rates'],['readings','tReadings','meter'],['invoices','tInvoices','invoice'],['approvals','tApprovals','approve'],['settings','nav_settings','gear']];
+const ADMIN_NAV=[['dash','nav_dash','home'],['houses','tHouses','house'],['rates','tRates','rates'],['readings','tReadings','meter'],['invoices','tInvoices','invoice'],['payments','tPayments','rates'],['approvals','tApprovals','approve'],['settings','nav_settings','gear']];
 function viewAdmin(){
   const pendingCount=db.owners.filter(o=>o.status==='pending').length;
   const nav=ADMIN_NAV.map(([k,l,ic])=>{
@@ -801,7 +807,7 @@ function bindAdmin(){
 }
 function doLogout(){ setSession(null); db.houses=[]; db.readings=[]; db.owners=[]; landingMode='home'; adminTab='dash'; loadBranding().then(render); }
 function renderAdminBody(){
-  const titleMap={dash:'pageDash',houses:'tHouses',rates:'tRates',readings:'tReadings',invoices:'tInvoices',approvals:'tApprovals',settings:'settingsTitle'};
+  const titleMap={dash:'pageDash',houses:'tHouses',rates:'tRates',readings:'tReadings',invoices:'tInvoices',payments:'tPayments',approvals:'tApprovals',settings:'settingsTitle'};
   const pg=document.getElementById('pgTitle'); if(pg)pg.textContent=t(titleMap[adminTab]);
   const body=document.getElementById('adminBody');
   if(adminTab==='dash'){ body.innerHTML=adminDash(); bindDash(); }
@@ -809,6 +815,7 @@ function renderAdminBody(){
   else if(adminTab==='rates'){ body.innerHTML=adminRates(); bindRates(); }
   else if(adminTab==='readings'){ body.innerHTML=adminReadings(); bindReadings(); }
   else if(adminTab==='invoices'){ body.innerHTML=adminInvoices(); bindAdminInvoices(); }
+  else if(adminTab==='payments'){ body.innerHTML=adminPayments(); bindPayments(); }
   else if(adminTab==='approvals'){ body.innerHTML=adminApprovals(); bindApprovals(); }
   else { body.innerHTML=adminSettings(); bindSettings(); }
 }
@@ -1057,6 +1064,83 @@ function bindAdminInvoices(){
   };
   updN();
 }
+/* --- Payments: verify payment, mark paid, attach/view proof --- */
+let payFilter='all', payHouse='all', payStatus='all';
+function adminPayments(){
+  const periods=[...new Set(db.readings.map(r=>r.period))].sort().reverse();
+  const pOpts=`<option value="all">${t('allPeriods')}</option>`+periods.map(p=>`<option value="${p}">${periodLabel(p)}</option>`).join('');
+  const hOpts=`<option value="all">${t('allHouses')}</option>`+db.houses.slice().sort((a,b)=>a.houseNumber.localeCompare(b.houseNumber))
+    .map(h=>`<option value="${h.id}">${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</option>`).join('');
+  const sOpts=['all','unpaid','paid'].map(s=>`<option value="${s}">${s==='all'?t('allStatuses'):t(s)}</option>`).join('');
+  if(payHouse!=='all' && !db.houses.some(h=>h.id===payHouse)) payHouse='all';
+  const list=db.readings
+    .filter(r=>(payFilter==='all'||r.period===payFilter)&&(payHouse==='all'||r.houseId===payHouse)&&(payStatus==='all'||(payStatus==='paid'?r.paid:!r.paid)))
+    .sort((a,b)=>b.period.localeCompare(a.period));
+  let rows=list.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
+    const pill=r.paid?`<span class="pill approved">${t('paid')}</span>`:`<span class="pill pending">${t('unpaid')}</span>`;
+    const proof=r.hasProof?`<button class="btn ghost sm" data-proof="${r.id}">${svg('doc','icn sm')} ${t('viewProof')}</button>`:`<span class="muted">—</span>`;
+    const act=r.paid
+      ?`<button class="btn ghost sm" data-unpaid="${r.id}">${t('markUnpaid')}</button> <button class="btn ghost sm" data-up="${r.id}">${svg('upload','icn sm')} ${t('uploadProof')}</button>`
+      :`<button class="btn ok sm" data-paid="${r.id}">${t('markPaid')}</button> <button class="btn ghost sm" data-up="${r.id}">${svg('upload','icn sm')} ${t('uploadProof')}</button>`;
+    return `<tr><td class="muted">${periodLabel(r.period)}</td><td><strong>${esc(h.houseNumber)}</strong></td><td>${esc(h.ownerName)||'—'}</td>
+      <td class="right nowrap"><strong>${money(c.total)}</strong></td><td>${pill}</td><td>${proof}</td><td class="right nowrap">${act}</td></tr>`;}).join('');
+  if(!rows) rows=`<tr><td colspan="7"><div class="empty"><div class="ei">${svg('rates')}</div>${t('noInvoices')}</div></td></tr>`;
+  return `<div class="card"><h2>${t('paymentsTitle')}</h2><p class="sub">${t('paymentsSub')}</p>
+    <div class="rowflex" style="align-items:flex-end">
+      <div class="field" style="margin:0;flex:1;min-width:160px"><label>${t('houseNo')}</label><select id="payHouse">${hOpts}</select></div>
+      <div class="field" style="margin:0;flex:1;min-width:150px;max-width:220px"><label>${t('filterPeriod')}</label><select id="payF">${pOpts}</select></div>
+      <div class="field" style="margin:0;flex:none;min-width:130px"><label>${t('status')}</label><select id="payS">${sOpts}</select></div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>${t('period')}</th><th>${t('houseNo')}</th><th>${t('owner')}</th><th class="right">${t('total')}</th><th>${t('status')}</th><th>${t('proof')}</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <input type="file" id="payProofFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+    <div id="paymsg"></div></div>`;
+}
+function bindPayments(){
+  const $=id=>document.getElementById(id);
+  const pf=$('payF'); if(pf){pf.value=payFilter; pf.onchange=()=>{payFilter=pf.value;renderAdminBody();};}
+  const ph=$('payHouse'); if(ph){ph.value=payHouse; ph.onchange=()=>{payHouse=ph.value;renderAdminBody();};}
+  const ps=$('payS'); if(ps){ps.value=payStatus; ps.onchange=()=>{payStatus=ps.value;renderAdminBody();};}
+  const msg=(cls,key)=>{ const m=$('paymsg'); if(m) m.innerHTML=`<div class="notice ${cls}">${t(key)}</div>`; };
+  const setPaid=async (id,paid)=>{
+    try{ const r=await api('/api/admin/readings/'+id+'/payment',{method:'POST',body:{paid}});
+      const loc=db.readings.find(x=>x.id===String(id)); if(loc){loc.paid=!!r.paid; loc.paidAt=r.paid_at||null;}
+      renderAdminBody(); setTimeout(()=>msg('ok',paid?'paidMsg':'unpaidMsg'),0);
+    }catch(e){ alert(e.message); }
+  };
+  document.querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>setPaid(b.dataset.paid,true));
+  document.querySelectorAll('[data-unpaid]').forEach(b=>b.onclick=()=>setPaid(b.dataset.unpaid,false));
+  document.querySelectorAll('[data-proof]').forEach(b=>b.onclick=async ()=>{
+    try{ const d=await api('/api/admin/readings/'+b.dataset.proof+'/proof'); if(d&&d.proof) openImageModal(d.proof,t('proofTitle')); }
+    catch(e){ alert(e.message); }
+  });
+  const file=$('payProofFile');
+  document.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>{ file.dataset.rid=b.dataset.up; file.click(); });
+  if(file) file.onchange=e=>{
+    const f=e.target.files[0]; if(!f){return;} const id=file.dataset.rid;
+    if(f.size>1.5*1024*1024){ msg('err','logoTooBig'); file.value=''; return; }
+    const rd=new FileReader();
+    rd.onload=async ()=>{ try{
+        const r=await api('/api/admin/readings/'+id+'/payment',{method:'POST',body:{proof:rd.result,paid:true}});
+        const loc=db.readings.find(x=>x.id===String(id)); if(loc){loc.paid=!!r.paid; loc.paidAt=r.paid_at||null; loc.hasProof=!!r.hasProof;}
+        renderAdminBody(); setTimeout(()=>msg('ok','proofSaved'),0);
+      }catch(err){ msg('err','logoTooBig'); } file.value=''; };
+    rd.readAsDataURL(f);
+  };
+}
+// Generic image viewer modal (proof of payment, etc.).
+function openImageModal(src,title){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,12,20,.7);display:grid;place-items:center;z-index:1000;padding:18px';
+  ov.innerHTML=`<div style="background:var(--panel,#fff);border-radius:16px;max-width:520px;width:100%;padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.4)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><h3 style="margin:0">${esc(title||'')}</h3><button id="imgClose" class="btn ghost sm">✕</button></div>
+    <img src="${src}" alt="${esc(title||'')}" style="width:100%;max-height:70vh;object-fit:contain;border-radius:10px;border:1px solid var(--line)">
+  </div>`;
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  document.body.appendChild(ov);
+  ov.querySelector('#imgClose').onclick=close;
+}
 /* --- Approvals --- */
 function adminApprovals(){
   const order={pending:0,approved:1,rejected:2};
@@ -1192,8 +1276,14 @@ function viewOwner(){
     const yearOpts=`<option value="all">${t('allYears')}</option>`+years.map(y=>`<option value="${y}"${y===ownerYear?' selected':''}>${displayYear(y)}</option>`).join('');
     const monthOpts=`<option value="all">${t('allMonths')}</option>`+monthsPresent.map(m=>`<option value="${m}"${m===ownerMonth?' selected':''}>${MONTHS[lang][parseInt(m,10)-1]}</option>`).join('');
     const rowsHtml=all.map(r=>{const c=calcInvoice(r); const lab=periodLabel(r.period);
-      return `<tr class="own-row ${r.period===ownerPeriod?'active':''}" data-p="${r.period}">
-        <td class="colcheck"><input type="checkbox" class="own-sel" value="${r.period}" onclick="event.stopPropagation()"></td><td><strong>${lab}</strong></td><td>${c.wU}</td><td>${c.gU}</td><td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('');
+      const cb=r.paid
+        ? `<input type="checkbox" class="own-sel" value="${r.period}" disabled title="${t('paid')}">`
+        : `<input type="checkbox" class="own-sel" value="${r.period}" onclick="event.stopPropagation()">`;
+      const totalCell=r.paid
+        ? `<strong>${money(c.total)}</strong> <span class="pill approved">${t('paid')}</span>`
+        : `<strong>${money(c.total)}</strong>`;
+      return `<tr class="own-row ${r.period===ownerPeriod?'active':''}${r.paid?' paid':''}" data-p="${r.period}">
+        <td class="colcheck">${cb}</td><td><strong>${lab}</strong></td><td>${c.wU}</td><td>${c.gU}</td><td class="right nowrap">${totalCell}</td></tr>`;}).join('');
     body=`<div class="card">
       <h2>${t('myInvoices')}</h2><p class="sub">${t('myInvSub')}</p>
       <div class="rowflex" style="align-items:flex-end;margin-bottom:14px">
@@ -1271,10 +1361,12 @@ function bindOwner(){
     downloadInvoicesPDF(ps.sort().reverse().map(p=>byP[p]));
   };
   // Pay selected month(s) (or the active month if none selected).
+  const paidSet=new Set((h?db.readings.filter(r=>r.houseId===h.id&&r.paid):[]).map(r=>r.period));
   const opay=document.getElementById('ownPay');
   if(opay) opay.onclick=()=>{
     let ps=osels().filter(c=>c.checked).map(c=>c.value);
     if(!ps.length && ownerPeriod) ps=[ownerPeriod];
+    ps=ps.filter(p=>!paidSet.has(p));   // paid months can't be paid again
     if(!ps.length){ alert(t('selectMonthsFirst')); return; }
     openPayModal(ps.sort().reverse());
   };
@@ -1291,8 +1383,11 @@ function drawInvoice(){
     <div class="inv-head">
       <div><div class="lbl">${t('invoiceFor')} · ${esc(h.houseNumber)}</div><div class="big">${periodLabel(ownerPeriod)}</div></div>
       <div style="text-align:right"><div class="lbl">${t('grandTotal')}</div><div class="tot">${money(c.total)}</div>
+        ${r.paid?`<div class="lbl" style="margin-top:4px;color:#fff;font-weight:700;display:flex;align-items:center;gap:6px;justify-content:flex-end">${svg('approve','icn sm')} ${t('paid')}</div>`:''}
         <div style="margin-top:10px;display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-        <button id="payBtn" style="background:#fff;color:var(--brand-d);border:1px solid #fff;padding:7px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('rates','icn sm')} ${t('pay')}</button>
+        ${r.paid
+          ? (r.hasProof?`<button id="rcptBtn" style="background:#fff;color:var(--brand-d);border:1px solid #fff;padding:7px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('doc','icn sm')} ${t('viewReceipt')}</button>`:'')
+          : `<button id="payBtn" style="background:#fff;color:var(--brand-d);border:1px solid #fff;padding:7px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('rates','icn sm')} ${t('pay')}</button>`}
         <button id="stmtDl" style="background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.4);padding:7px 13px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('doc','icn sm')} ${t('download')}</button>
         </div>
       </div>
@@ -1311,6 +1406,10 @@ function drawInvoice(){
   </div>`;
   const b=document.getElementById('stmtDl'); if(b) b.onclick=()=>downloadInvoicesPDF([r]);
   const pb=document.getElementById('payBtn'); if(pb) pb.onclick=()=>openPayModal([ownerPeriod]);
+  const rb=document.getElementById('rcptBtn'); if(rb) rb.onclick=async ()=>{
+    try{ const d=await api('/api/owner/readings/'+r.id+'/proof'); if(d&&d.proof) openImageModal(d.proof,t('viewReceipt')); }
+    catch(e){ alert(e.message); }
+  };
 }
 
 /* PromptPay payment modal: shows the uploaded QR and the total for the chosen month(s). */
