@@ -3,6 +3,9 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    # Disallow privilege escalation inside the container (VAPT M-2).
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: mcts
       # Strong password supplied via the gitignored .env file (see .env.example).
@@ -21,6 +24,10 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # Runs as the unprivileged `node` user (see Dockerfile) and cannot gain new
+    # privileges (VAPT M-2).
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       db:
         condition: service_healthy
@@ -40,4 +47,12 @@ services:
     command: sh -c "node src/migrate.js && node src/server.js"
 
 volumes:
+  # Postgres data. For encryption at rest (VAPT M-3), back this with a DigitalOcean
+  # Block Storage volume (DO-encrypted) mounted on the host, then uncomment the
+  # bind below and remove the empty default. See ops/README.md → "Encryption at rest".
   pgdata:
+    # driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /mnt/mcts-pgdata

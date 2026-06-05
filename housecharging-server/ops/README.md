@@ -36,6 +36,50 @@ Apply with `nginx -t && systemctl reload nginx`. Verify end-to-end:
 
     curl -sI https://mcts.urbanwerkzsg.com | grep -iE 'content-security|strict-transport|x-frame|x-content|referrer|permissions|server|x-powered'
 
+## Non-root container (VAPT M-2)
+The app image runs as the unprivileged `node` user (`USER node` in the Dockerfile)
+and both services set `security_opt: [no-new-privileges:true]` in compose. Verify
+after deploy:
+
+    docker compose exec app id        # expect uid=1000(node), not uid=0(root)
+
+## Encryption at rest (VAPT M-3)
+Goal: put the Postgres data directory on a **DigitalOcean Block Storage** volume,
+which DO encrypts at rest, instead of the unencrypted droplet root disk.
+
+1. **Create + attach** a Block Storage volume to the droplet (DO panel → Volumes,
+   same region sgp1). DO gives a stable device path like
+   `/dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata`.
+2. **Format + mount** it (one-time), and persist in `/etc/fstab`:
+
+       mkfs.ext4 /dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata
+       mkdir -p /mnt/mcts-pgdata
+       echo '/dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata /mnt/mcts-pgdata ext4 defaults,nofail,discard 0 2' >> /etc/fstab
+       mount -a
+
+3. **Take a backup first** (so the migration is reversible):
+
+       /usr/local/bin/mcts-db-backup.sh
+
+4. **Move the data** from the current Docker volume onto the encrypted mount:
+
+       docker compose stop app db
+       docker run --rm -v housecharging-server_pgdata:/from -v /mnt/mcts-pgdata:/to \
+         alpine sh -c 'cp -a /from/. /to/'
+
+   (Confirm the source volume name with `docker volume ls`.)
+5. **Point compose at the mount:** in `docker-compose.yml`, uncomment the
+   `driver_opts` bind under `volumes: pgdata:` (device `/mnt/mcts-pgdata`).
+6. **Bring it back up and verify:**
+
+       docker compose up -d
+       docker compose exec db pg_isready -U mcts
+       # spot-check the app and a known invoice, then remove the old volume:
+       # docker volume rm housecharging-server_pgdata
+
+> Note: this encrypts the **live database** disk. Backups are covered separately
+> (M-4 — ship them off-box and encrypt the dumps).
+
 ## Backups
 `mcts-db-backup.sh` takes a gzipped `pg_dump`, written atomically, keeping 14 days.
 Deployed copy lives at `/usr/local/bin/mcts-db-backup.sh`, scheduled nightly via cron:
