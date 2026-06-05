@@ -306,6 +306,7 @@ const I18N = {
     requestedHouse:"Requested house", status:"Status", approve:"Approve", reject:"Reject",
     noPending:"No registration requests.", noMatchHouse:"No matching house",
     approvedMsg:"Owner approved.", rejectedMsg:"Request rejected.",
+    addUser:"Add owner account", addUserSub:"Create an owner login directly — it's approved immediately.", create:"Create", resetPw:"Reset password", userCreated:"Owner account created.", pwReset:"Password reset.", newPwFor:"Enter a new password for",
     allInvoices:"All Invoices", invoicesSub:"Every calculated statement across the community.",
     filterPeriod:"Period", allPeriods:"All periods", noInvoices:"No invoices for this selection.",
     searchInvoices:"Search", searchPlaceholder:"House number, cluster or owner…", searchPlaceholderP:"Month or year, e.g. April or 2026…", noResults:"No invoices match your search.", allHouses:"All houses",
@@ -332,6 +333,8 @@ const I18N = {
     nav_settings:"Settings", settingsTitle:"Community Branding", settingsSub:"Upload your community logo and name. The logo appears on the sign-in screen and throughout the portal.",
     communityName:"Community name", logo:"Logo", uploadLogo:"Upload logo", changeLogo:"Change logo", removeLogo:"Remove",
     logoHelp:"PNG, JPG or SVG. Square images look best. Max 1.5 MB.", logoTooBig:"Image is too large (max 1.5 MB).", brandingSaved:"Branding saved.", noLogo:"No logo uploaded yet",
+    ppQr:"PromptPay payment QR", uploadQr:"Upload QR", changeQr:"Change QR", ppHelp:"Upload your community's PromptPay QR (PNG or JPG). Owners scan it to pay. Max 1.5 MB.", noPpQr:"No PromptPay QR uploaded yet", ppSaved:"Payment QR saved.",
+    pay:"Pay", payTitle:"Pay with PromptPay", scanToPay:"Scan with your banking app to pay", noQrOwner:"Payment QR is not available yet. Please contact the management office.", close:"Close", payFor:"Payment for",
   },
   zh:{
     appName:"MCTS 账单", logout:"退出登录",
@@ -372,6 +375,7 @@ const I18N = {
     requestedHouse:"申请门牌号", status:"状态", approve:"通过", reject:"拒绝",
     noPending:"暂无注册申请。", noMatchHouse:"无匹配房屋",
     approvedMsg:"业主已通过审核。", rejectedMsg:"申请已拒绝。",
+    addUser:"新增业主账号", addUserSub:"直接创建业主登录账号——立即通过审核。", create:"创建", resetPw:"重置密码", userCreated:"业主账号已创建。", pwReset:"密码已重置。", newPwFor:"请输入新密码：",
     allInvoices:"全部账单", invoicesSub:"社区内所有已计算的账单。",
     filterPeriod:"周期", allPeriods:"全部周期", noInvoices:"该筛选条件下暂无账单。",
     searchInvoices:"搜索", searchPlaceholder:"门牌号、组团或业主…", searchPlaceholderP:"月份或年份，如 4月 或 2026…", noResults:"没有符合搜索条件的账单。", allHouses:"全部房屋",
@@ -398,6 +402,8 @@ const I18N = {
     nav_settings:"设置", settingsTitle:"社区品牌", settingsSub:"上传社区标志和名称。标志将显示在登录页面及整个门户中。",
     communityName:"社区名称", logo:"标志", uploadLogo:"上传标志", changeLogo:"更换标志", removeLogo:"移除",
     logoHelp:"支持 PNG、JPG 或 SVG。方形图片效果最佳。最大 1.5 MB。", logoTooBig:"图片过大（最大 1.5 MB）。", brandingSaved:"品牌设置已保存。", noLogo:"尚未上传标志",
+    ppQr:"PromptPay 收款二维码", uploadQr:"上传二维码", changeQr:"更换二维码", ppHelp:"上传社区的 PromptPay 收款二维码（PNG 或 JPG），业主扫码付款。最大 1.5 MB。", noPpQr:"尚未上传 PromptPay 二维码", ppSaved:"收款二维码已保存。",
+    pay:"支付", payTitle:"使用 PromptPay 付款", scanToPay:"用银行 App 扫码支付", noQrOwner:"暂未设置付款二维码，请联系物业办公室。", close:"关闭", payFor:"付款月份",
   },
   th:{
     appName:"ระบบบิล MCTS", logout:"ออกจากระบบ",
@@ -438,6 +444,7 @@ const I18N = {
     requestedHouse:"บ้านที่ขอ", status:"สถานะ", approve:"อนุมัติ", reject:"ปฏิเสธ",
     noPending:"ไม่มีคำขอลงทะเบียน", noMatchHouse:"ไม่พบบ้านที่ตรงกัน",
     approvedMsg:"อนุมัติเจ้าของบ้านแล้ว", rejectedMsg:"ปฏิเสธคำขอแล้ว",
+    addUser:"เพิ่มบัญชีเจ้าของบ้าน", addUserSub:"สร้างบัญชีเข้าสู่ระบบให้เจ้าของบ้านโดยตรง — อนุมัติทันที", create:"สร้าง", resetPw:"รีเซ็ตรหัสผ่าน", userCreated:"สร้างบัญชีเจ้าของบ้านแล้ว", pwReset:"รีเซ็ตรหัสผ่านแล้ว", newPwFor:"กรอกรหัสผ่านใหม่สำหรับ",
     allInvoices:"ใบแจ้งหนี้ทั้งหมด", invoicesSub:"ใบแจ้งหนี้ที่คำนวณแล้วทั้งหมดในชุมชน",
     filterPeriod:"รอบ", allPeriods:"ทุกรอบ", noInvoices:"ไม่มีใบแจ้งหนี้ตามที่เลือก",
     searchInvoices:"ค้นหา", searchPlaceholder:"บ้านเลขที่ กลุ่ม หรือเจ้าของ…", searchPlaceholderP:"เดือนหรือปี เช่น เมษายน หรือ 2026…", noResults:"ไม่พบใบแจ้งหนี้ที่ตรงกับการค้นหา", allHouses:"บ้านทั้งหมด",
@@ -464,6 +471,8 @@ const I18N = {
     nav_settings:"ตั้งค่า", settingsTitle:"แบรนด์ชุมชน", settingsSub:"อัปโหลดโลโก้และชื่อชุมชน โลโก้จะแสดงบนหน้าเข้าสู่ระบบและทั่วทั้งพอร์ทัล",
     communityName:"ชื่อชุมชน", logo:"โลโก้", uploadLogo:"อัปโหลดโลโก้", changeLogo:"เปลี่ยนโลโก้", removeLogo:"ลบ",
     logoHelp:"PNG, JPG หรือ SVG รูปสี่เหลี่ยมจัตุรัสดูดีที่สุด สูงสุด 1.5 MB", logoTooBig:"รูปภาพใหญ่เกินไป (สูงสุด 1.5 MB)", brandingSaved:"บันทึกแบรนด์แล้ว", noLogo:"ยังไม่ได้อัปโหลดโลโก้",
+    ppQr:"QR พร้อมเพย์สำหรับชำระเงิน", uploadQr:"อัปโหลด QR", changeQr:"เปลี่ยน QR", ppHelp:"อัปโหลด QR พร้อมเพย์ของชุมชน (PNG หรือ JPG) เจ้าของบ้านสแกนเพื่อชำระเงิน สูงสุด 1.5 MB", noPpQr:"ยังไม่ได้อัปโหลด QR พร้อมเพย์", ppSaved:"บันทึก QR ชำระเงินแล้ว",
+    pay:"ชำระเงิน", payTitle:"ชำระผ่านพร้อมเพย์", scanToPay:"สแกนด้วยแอปธนาคารเพื่อชำระเงิน", noQrOwner:"ยังไม่มี QR ชำระเงิน กรุณาติดต่อสำนักงานนิติบุคคล", close:"ปิด", payFor:"ชำระสำหรับเดือน",
   }
 };
 const MONTHS = {
@@ -492,7 +501,7 @@ async function api(path, { method='GET', body, auth=true } = {}){
 
 // Client cache shaped like the original db (so all render code works unchanged).
 let db = {
-  settings:{logo:null, communityName:'MCTS', address:''},
+  settings:{logo:null, communityName:'MCTS', address:'', promptPayQr:null},
   rates:{currency:'THB', waterRate:18, waterFixed:30, gasRate:25, gasFixed:20},
   formula:{water:DEFAULT_FORMULA, gas:DEFAULT_FORMULA},
   houses:[], readings:[], owners:[],
@@ -503,7 +512,7 @@ const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:
   waterNo:r.waterNo, gasNo:r.gasNo });
 const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
 function applySettings(s){
-  db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'' };
+  db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'', promptPayQr:s.promptpay_qr||null };
   db.rates={ currency:s.currency||'THB', waterRate:Number(s.water_rate), waterFixed:Number(s.water_fixed), gasRate:Number(s.gas_rate), gasFixed:Number(s.gas_fixed) };
   db.formula={ water:s.formula_water||DEFAULT_FORMULA, gas:s.formula_gas||DEFAULT_FORMULA };
 }
@@ -522,7 +531,7 @@ async function loadAdmin(){
 async function refreshOwners(){ try{ db.owners=(await api('/api/admin/owners')).map(normOwner); }catch(e){} }
 async function loadOwner(){
   const d=await api('/api/owner/bootstrap');
-  db.settings={ logo:d.branding.logo||null, communityName:d.branding.communityName||'MCTS', address:d.branding.address||'' };
+  db.settings={ logo:d.branding.logo||null, communityName:d.branding.communityName||'MCTS', address:d.branding.address||'', promptPayQr:d.branding.promptPayQr||null };
   db.rates=d.rates;
   db.formula={ water:d.formulaWater||DEFAULT_FORMULA, gas:d.formulaGas||DEFAULT_FORMULA };
   db.houses=d.house?[{ id:'1', cluster:d.house.cluster||'', houseNumber:d.house.houseNumber, ownerName:d.house.ownerName||'' }]:[];
@@ -536,6 +545,7 @@ function buildState(){
   const idToNo=Object.fromEntries(db.houses.map(h=>[h.id, h.houseNumber]));
   return {
     settings:{ communityName:db.settings.communityName, address:db.settings.address, logo:db.settings.logo,
+      promptPayQr:db.settings.promptPayQr,
       currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
       gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas },
     houses: db.houses.map(h=>({ cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName })),
@@ -1040,12 +1050,22 @@ function adminApprovals(){
   const list=[...db.owners].sort((a,b)=>order[a.status]-order[b.status]);
   const rows=list.length?list.map(o=>{
     const match=houseByNumber(o.houseNumber);
-    const act=o.status==='pending'?`<button class="btn ok sm" data-ap="${o.id}">${t('approve')}</button> <button class="btn danger sm" data-rj="${o.id}">${t('reject')}</button>`:'<span class="muted">—</span>';
+    const approveBtns=o.status==='pending'?`<button class="btn ok sm" data-ap="${o.id}">${t('approve')}</button> <button class="btn danger sm" data-rj="${o.id}">${t('reject')}</button> `:'';
+    const act=`${approveBtns}<button class="btn ghost sm" data-pw="${o.id}" data-pwuser="${esc(o.username)}">${t('resetPw')}</button>`;
     return `<tr><td><div class="util-cell"><span class="user-av" style="width:30px;height:30px">${initials(o.username)}</span><strong>${esc(o.username)}</strong></div></td>
       <td>${esc(o.houseNumber)} ${match?'':'<span class="pill warn">'+t('noMatchHouse')+'</span>'}</td>
       <td><span class="pill ${o.status}">${t(o.status)}</span></td><td class="right nowrap">${act}</td></tr>`;}).join('')
     :`<tr><td colspan="4"><div class="empty"><div class="ei">${svg('approve')}</div>${t('noPending')}</div></td></tr>`;
-  return `<div class="card"><h2>${t('approvalsTitle')}</h2><p class="sub">${t('approvalsSub')}</p>
+  const houseOpts=db.houses.map(h=>`<option value="${esc(h.houseNumber)}">`).join('');
+  return `<div class="card"><h2>${t('addUser')}</h2><p class="sub">${t('addUserSub')}</p>
+    <div class="rowflex">
+      <div class="field" style="margin:0"><label>${t('username')}</label><input id="nu_user" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label>${t('password')}</label><input id="nu_pass" type="text" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label>${t('requestedHouse')}</label><input id="nu_house" list="nu_houses" autocomplete="off" placeholder="A-101"><datalist id="nu_houses">${houseOpts}</datalist></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn primary" id="nu_create">${svg('plus','icn sm')} ${t('create')}</button></div>
+    <div id="numsg"></div></div>
+  <div class="card"><h2>${t('approvalsTitle')}</h2><p class="sub">${t('approvalsSub')}</p>
     <div class="tbl-wrap"><table><thead><tr><th>${t('username')}</th><th>${t('requestedHouse')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div id="apmsg"></div></div>`;
 }
 function bindApprovals(){
@@ -1059,6 +1079,23 @@ function bindApprovals(){
       setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice info">${t('rejectedMsg')}</div>`;},0);
     }catch(e){ alert(e.message); }
   });
+  document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=async ()=>{
+    const pw=prompt(t('newPwFor')+' '+b.dataset.pwuser+':'); if(pw===null) return;
+    if(!pw.trim()){ alert(t('fillAll')); return; }
+    try{ await api('/api/admin/owners/'+b.dataset.pw+'/password',{method:'POST',body:{password:pw}});
+      const m=document.getElementById('apmsg'); if(m)m.innerHTML=`<div class="notice ok">${t('pwReset')}</div>`;
+    }catch(e){ alert(e.message); }
+  });
+  const create=document.getElementById('nu_create');
+  if(create) create.onclick=async ()=>{
+    const $=id=>document.getElementById(id);
+    const username=$('nu_user').value.trim(), password=$('nu_pass').value, houseNumber=$('nu_house').value.trim();
+    const msg=$('numsg');
+    if(!username||!password||!houseNumber){ msg.innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
+    try{ await api('/api/admin/owners',{method:'POST',body:{username,password,houseNumber}}); await refreshOwners(); renderAdminBody();
+      setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice ok">${t('userCreated')}</div>`;},0);
+    }catch(e){ msg.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+  };
 }
 
 /* --- Settings / Branding --- */
@@ -1084,6 +1121,17 @@ function adminSettings(){
         ${!s.logo?`<p class="help" style="color:var(--brand)">${svg('shield','icn sm')} ${t('noLogo')} — ${t('appName')} default in use.</p>`:''}
       </div>
     </div>
+    <label style="margin-top:18px">${t('ppQr')}</label>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <div class="logo-box">${s.promptPayQr?`<img src="${s.promptPayQr}" alt="PromptPay QR" style="width:100%;height:100%;object-fit:contain">`:`<div style="display:grid;place-items:center;width:100%;height:100%;color:var(--muted)">${svg('invoice')}</div>`}</div>
+      <div style="flex:1;min-width:200px">
+        <input type="file" id="ppFile" accept="image/png,image/jpeg,image/webp" style="display:none">
+        <button class="btn ghost" id="ppBtn">${svg('upload','icn sm')} ${s.promptPayQr?t('changeQr'):t('uploadQr')}</button>
+        ${s.promptPayQr?`<button class="btn danger" id="ppDel" style="margin-left:8px">${t('removeLogo')}</button>`:''}
+        <p class="help">${t('ppHelp')}</p>
+        ${!s.promptPayQr?`<p class="help" style="color:var(--brand)">${svg('shield','icn sm')} ${t('noPpQr')}</p>`:''}
+      </div>
+    </div>
     <button class="btn" id="saveSettings" style="margin-top:18px">${t('save')}</button><div id="setmsg"></div>
   </div>`;
 }
@@ -1098,6 +1146,15 @@ function bindSettings(){
     rd.readAsDataURL(f);
   };
   if($('logoDel')) $('logoDel').onclick=()=>{ db.settings.logo=null; save(db); setFavicon(); renderAdminBody(); };
+  $('ppBtn').onclick=()=>$('ppFile').click();
+  $('ppFile').onchange=e=>{
+    const f=e.target.files[0]; if(!f)return;
+    if(f.size>1.5*1024*1024){ $('setmsg').innerHTML=`<div class="notice err">${t('logoTooBig')}</div>`; return; }
+    const rd=new FileReader();
+    rd.onload=()=>{ db.settings.promptPayQr=rd.result; save(db); renderAdminBody(); setTimeout(()=>{const m=$('setmsg');if(m)m.innerHTML=`<div class="notice ok">${t('ppSaved')}</div>`;},0); };
+    rd.readAsDataURL(f);
+  };
+  if($('ppDel')) $('ppDel').onclick=()=>{ db.settings.promptPayQr=null; save(db); renderAdminBody(); };
   $('saveSettings').onclick=()=>{ db.settings.communityName=$('cName').value.trim()||'MCTS'; db.settings.address=$('cAddr').value.trim(); save(db); document.title=brandName()+' · Utility Billing';
     const sb=document.querySelector('.side-brand span'); if(sb)sb.textContent=db.settings.communityName;
     $('setmsg').innerHTML=`<div class="notice ok">${t('brandingSaved')}</div>`; };
@@ -1189,7 +1246,10 @@ function drawInvoice(){
     <div class="inv-head">
       <div><div class="lbl">${t('invoiceFor')} · ${esc(h.houseNumber)}</div><div class="big">${periodLabel(ownerPeriod)}</div></div>
       <div style="text-align:right"><div class="lbl">${t('grandTotal')}</div><div class="tot">${money(c.total)}</div>
-        <button id="stmtDl" style="margin-top:10px;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.4);padding:7px 13px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('doc','icn sm')} ${t('download')}</button>
+        <div style="margin-top:10px;display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button id="payBtn" style="background:#fff;color:var(--brand-d);border:1px solid #fff;padding:7px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('rates','icn sm')} ${t('pay')}</button>
+        <button id="stmtDl" style="background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.4);padding:7px 13px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('doc','icn sm')} ${t('download')}</button>
+        </div>
       </div>
     </div>
     <div class="inv-body">
@@ -1205,6 +1265,35 @@ function drawInvoice(){
     <div class="inv-foot-note">${t('thanks')}</div>
   </div>`;
   const b=document.getElementById('stmtDl'); if(b) b.onclick=()=>downloadInvoicesPDF([r]);
+  const pb=document.getElementById('payBtn'); if(pb) pb.onclick=()=>openPayModal(ownerPeriod, c.total);
+}
+
+/* PromptPay payment modal: shows the uploaded QR and the amount for the month. */
+function openPayModal(period, amount){
+  const qr=(db.settings||{}).promptPayQr||null;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(8,12,20,.62);backdrop-filter:blur(2px);display:grid;place-items:center;z-index:1000;padding:18px';
+  const inner=qr
+    ? `<div style="margin:14px 0;display:grid;place-items:center"><img src="${qr}" alt="PromptPay QR" style="max-width:280px;max-height:280px;width:100%;border-radius:14px;border:1px solid var(--line)"></div>
+       <p class="help" style="text-align:center;margin:0 0 4px">${t('scanToPay')}</p>`
+    : `<div class="notice info" style="margin:14px 0">${t('noQrOwner')}</div>`;
+  ov.innerHTML=`<div style="background:var(--panel,#fff);border-radius:18px;max-width:360px;width:100%;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.4)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h3 style="margin:0">${t('payTitle')}</h3>
+      <button id="payClose" class="btn ghost sm" aria-label="${t('close')}">✕</button>
+    </div>
+    <div style="margin-top:6px;color:var(--muted)">${t('payFor')} ${esc(periodLabel(period))}</div>
+    <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:baseline;background:var(--brand-soft);border:1px solid var(--brand-2);border-radius:12px;padding:12px 14px">
+      <span class="lbl">${t('amountDue')}</span><b style="font-size:22px;color:var(--brand-d)">${money(amount)}</b>
+    </div>
+    ${inner}
+    <button id="payClose2" class="btn" style="width:100%;margin-top:6px">${t('close')}</button>
+  </div>`;
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  document.body.appendChild(ov);
+  ov.querySelector('#payClose').onclick=close;
+  ov.querySelector('#payClose2').onclick=close;
 }
 
 /* ===================== PDF EXPORT ===================== */

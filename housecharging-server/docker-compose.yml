@@ -5,7 +5,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: mcts
-      POSTGRES_PASSWORD: mcts
+      # Strong password supplied via the gitignored .env file (see .env.example).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: mcts
     # Not published to the host: the app reaches Postgres over the internal compose
     # network. (Host port 5432 is already used by another service on this box.)
@@ -24,11 +25,12 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://mcts:mcts@db:5432/mcts
+      # All secrets come from the gitignored .env file (compose substitutes them here).
+      DATABASE_URL: postgres://mcts:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mcts
       PGSSL: "false"
-      JWT_SECRET: dev-secret-change-me
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: admin123
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       SEED_DEMO: "true"
       PORT: "3000"
     # Bound to localhost only; nginx (host) reverse-proxies mcts.urbanwerkzsg.com here.

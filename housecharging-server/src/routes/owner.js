@@ -22,7 +22,7 @@ async function invoiceNumber(client, readingId, utility) {
 router.get('/bootstrap', async (req, res, next) => {
   try {
     const s = (await query('SELECT * FROM settings WHERE id=1')).rows[0];
-    const branding = { communityName: s.community_name, address: s.address, logo: s.logo, currency: s.currency };
+    const branding = { communityName: s.community_name, address: s.address, logo: s.logo, currency: s.currency, promptPayQr: s.promptpay_qr || null };
     const houseNumber = req.user.houseNumber;
     const house = (await query('SELECT * FROM houses WHERE lower(house_number)=lower($1)', [houseNumber])).rows[0] || null;
 

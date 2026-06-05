@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
-import { requireAdmin } from '../auth.js';
+import { requireAdmin, hashPassword } from '../auth.js';
 import { computeInvoice } from '../invoice.js';
 import { isValidFormula, DEFAULT_FORMULA } from '../formula.js';
 
@@ -102,7 +102,8 @@ router.put('/branding', async (req, res, next) => {
     const logo = b.logo === undefined ? undefined : (b.logo || null);
     const sets = ['community_name=$1', 'address=$2', 'updated_at=now()'];
     const params = [b.communityName || 'MCTS', b.address || ''];
-    if (logo !== undefined) { sets.splice(2, 0, 'logo=$3'); params.push(logo); }
+    if (logo !== undefined) { sets.splice(sets.length - 1, 0, `logo=$${params.length + 1}`); params.push(logo); }
+    if (b.promptPayQr !== undefined) { sets.splice(sets.length - 1, 0, `promptpay_qr=$${params.length + 1}`); params.push(b.promptPayQr || null); }
     const { rows } = await query(`UPDATE settings SET ${sets.join(', ')} WHERE id=1 RETURNING *`, params);
     res.json(rows[0]);
   } catch (e) { next(e); }
@@ -171,9 +172,10 @@ router.put('/state', async (req, res, next) => {
       await client.query(
         `UPDATE settings SET community_name=$1, address=$2, logo=$3, currency=$4,
            water_rate=$5, water_fixed=$6, gas_rate=$7, gas_fixed=$8,
-           formula_water=$9, formula_gas=$10, updated_at=now() WHERE id=1`,
+           formula_water=$9, formula_gas=$10, promptpay_qr=$11, updated_at=now() WHERE id=1`,
         [s.communityName || 'MCTS', s.address || '', s.logo ?? null, s.currency || 'THB',
-         num(s.waterRate, 0), num(s.waterFixed, 0), num(s.gasRate, 0), num(s.gasFixed, 0), fw, fg]);
+         num(s.waterRate, 0), num(s.waterFixed, 0), num(s.gasRate, 0), num(s.gasFixed, 0), fw, fg,
+         s.promptPayQr ?? null]);
 
       const houses = Array.isArray(b.houses) ? b.houses : [];
       const keep = [];
@@ -229,6 +231,38 @@ router.get('/owners', async (_req, res, next) => {
     const { rows } = await query(
       'SELECT id, username, house_number, status, created_at FROM owners ORDER BY created_at');
     res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Admin creates an owner account directly (approved by default, ready to log in).
+router.post('/owners', async (req, res, next) => {
+  try {
+    const { username, password, houseNumber } = req.body || {};
+    if (!username || !password || !houseNumber)
+      return res.status(400).json({ error: 'Username, password and house number are required' });
+    const status = req.body.status === 'pending' ? 'pending' : 'approved';
+    const exists = await query('SELECT 1 FROM owners WHERE lower(username)=lower($1)', [username]);
+    if (exists.rows.length) return res.status(409).json({ error: 'Username already taken' });
+    const hash = await hashPassword(password);
+    const { rows } = await query(
+      `INSERT INTO owners (username, password_hash, house_number, status)
+       VALUES ($1,$2,$3,$4) RETURNING id, username, house_number, status, created_at`,
+      [username, hash, houseNumber, status]);
+    res.status(201).json(rows[0]);
+  } catch (e) { next(e); }
+});
+
+// Admin resets an owner's password. (Defined before /:action so it isn't shadowed.)
+router.post('/owners/:id/password', async (req, res, next) => {
+  try {
+    const { password } = req.body || {};
+    if (!password) return res.status(400).json({ error: 'A new password is required' });
+    const hash = await hashPassword(password);
+    const { rows } = await query(
+      'UPDATE owners SET password_hash=$1 WHERE id=$2 RETURNING id, username, house_number, status',
+      [hash, req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Owner not found' });
+    res.json(rows[0]);
   } catch (e) { next(e); }
 });
 

@@ -56,9 +56,14 @@ CREATE TABLE IF NOT EXISTS settings (
   gas_fixed      NUMERIC NOT NULL DEFAULT 0,
   formula_water  TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
   formula_gas    TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
+  promptpay_qr   TEXT,
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT settings_singleton CHECK (id = 1)
 );
+
+-- PromptPay payment QR image (data URL), uploaded by the admin and shown to owners.
+-- ALTER (not just the column above) so existing databases pick it up on re-migrate.
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS promptpay_qr TEXT;
 
 -- Seed the singleton settings row so the app's UPDATE ... WHERE id=1 always has a target.
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
