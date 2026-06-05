@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCTS · Community Utility Billing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f7; --bg2:#e6ecf4;
+    --panel:#ffffff; --panel-2:#f7f9fc;
+    --ink:#101828; --ink-2:#475467; --muted:#98a2b3; --line:#e7ebf1;
+    --brand:#0f766e; --brand-2:#14b8a6; --brand-d:#0b5650; --brand-soft:#e7f6f4;
+    --water:#0ea5e9; --water-soft:#e6f5fd; --gas:#f97316; --gas-soft:#fff1e6;
+    --ok:#16a34a; --ok-soft:#e9f8ef; --warn:#d97706; --warn-soft:#fef5e7; --bad:#dc2626; --bad-soft:#fdecec;
+    --r:16px; --r-sm:11px;
+    --sh-sm:0 1px 2px rgba(16,24,40,.06); --sh:0 4px 18px rgba(16,24,40,.07); --sh-lg:0 20px 50px rgba(16,24,40,.14);
+    --grad:linear-gradient(140deg,#0f766e 0%,#14b8a6 55%,#0ea5e9 130%);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:"Inter","Noto Sans Thai","Noto Sans SC",system-ui,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%,#dff3f0 0%,transparent 60%),var(--bg);
+    color:var(--ink);font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  :lang(th){font-family:"Noto Sans Thai","Inter",sans-serif}
+  :lang(zh){font-family:"Noto Sans SC","Inter",sans-serif}
+  a{color:var(--brand);text-decoration:none}
+  button{font-family:inherit}
+  svg{display:block}
+  .icn{width:20px;height:20px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .icn.sm{width:16px;height:16px}
+
+  /* ---------- buttons ---------- */
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#fff;border:none;
+    padding:11px 18px;border-radius:11px;cursor:pointer;font-size:14px;font-weight:600;transition:.15s;box-shadow:var(--sh-sm)}
+  .btn:hover{background:var(--brand-d);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.block{width:100%;justify-content:center;padding:13px}
+  .btn.sm{padding:7px 13px;font-size:13px;border-radius:9px}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--line);box-shadow:none}
+  .btn.ghost:hover{background:var(--brand-soft);border-color:var(--brand-2);transform:none}
+  .btn.soft{background:var(--brand-soft);color:var(--brand-d);box-shadow:none}
+  .btn.soft:hover{background:#d6efec;transform:none}
+  .btn.ok{background:var(--ok)} .btn.ok:hover{filter:brightness(.94)}
+  .btn.danger{background:#fff;color:var(--bad);border:1px solid #f3c9c9;box-shadow:none}
+  .btn.danger:hover{background:var(--bad-soft);transform:none}
+
+  /* ---------- inputs ---------- */
+  .field{margin-bottom:14px}
+  label{display:block;font-size:12.5px;color:var(--ink-2);margin-bottom:6px;font-weight:600}
+  .opt{color:var(--muted);font-weight:500}
+  input,select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:11px;font-size:14px;
+    background:#fff;color:var(--ink);font-family:inherit;transition:.15s}
+  input:focus,select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 4px var(--brand-soft)}
+  input[type=checkbox]{width:17px;height:17px;min-width:17px;padding:0;accent-color:var(--brand);cursor:pointer;vertical-align:middle}
+  .colcheck{width:40px;text-align:center}
+  .help{font-size:12px;color:var(--muted);margin-top:6px}
+
+  /* ---------- language pills ---------- */
+  .lang{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .lang button{background:transparent;border:none;padding:6px 11px;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+  .lang button.active{background:#fff;color:var(--brand-d);box-shadow:var(--sh-sm)}
+
+  /* ---------- cards ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:24px}
+  .card + .card{margin-top:18px}
+  h1{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+  h2{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px}
+  h3{font-size:14px;font-weight:700;margin:0 0 10px;color:var(--ink)}
+  .sub{color:var(--ink-2);font-size:13.5px;margin:0 0 18px}
+  .muted{color:var(--muted)} .small{font-size:12.5px}
+
+  /* ---------- notices ---------- */
+  .notice{display:flex;gap:9px;align-items:flex-start;padding:12px 14px;border-radius:11px;font-size:13.5px;margin-top:12px;font-weight:500}
+  .notice.ok{background:var(--ok-soft);color:#0c6b34;border:1px solid #bbe9cb}
+  .notice.err{background:var(--bad-soft);color:#a01919;border:1px solid #f3c9c9}
+  .notice.info{background:var(--water-soft);color:#0a5a86;border:1px solid #bfe6f8}
+
+  /* ---------- tables ---------- */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:13px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+  thead th{background:var(--panel-2);color:var(--ink-2);font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.05em;text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafbfd}
+  .right{text-align:right} .nowrap{white-space:nowrap}
+  tfoot td{padding:12px 14px;background:var(--panel-2);font-weight:700}
+
+  /* ---------- pills ---------- */
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill.pending{background:var(--warn-soft);color:#b45309}
+  .pill.approved{background:var(--ok-soft);color:#15803d}
+  .pill.rejected{background:var(--bad-soft);color:#b91c1c}
+  .pill.warn{background:var(--bad-soft);color:#b91c1c}
+  .pill.warn::before{display:none}
+
+  /* ---------- stats ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden}
+  .stat .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px}
+  .stat .l{font-size:12px;color:var(--ink-2);font-weight:600}
+  .stat .v{font-size:23px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+  .ico.brand{background:var(--brand-soft);color:var(--brand)} .ico.water{background:var(--water-soft);color:var(--water)}
+  .ico.gas{background:var(--gas-soft);color:var(--gas)} .ico.ok{background:var(--ok-soft);color:var(--ok)}
+  .ico.warn{background:var(--warn-soft);color:var(--warn)}
+
+  /* ---------- segmented ---------- */
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:4px;gap:3px;flex-wrap:wrap}
+  .seg button{background:transparent;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--ink-2)}
+  .seg button.active{background:#fff;color:var(--brand-d);box-shadow:var(--sh-sm)}
+
+  .rowflex{display:flex;gap:14px;flex-wrap:wrap}
+  .rowflex > *{flex:1;min-width:150px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:540px){.grid2{grid-template-columns:1fr}}
+
+  /* ================= LOGIN ================= */
+  .auth{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr}
+  .auth-hero{background:var(--grad);color:#fff;padding:54px 50px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .auth-hero .blob{position:absolute;border-radius:50%;filter:blur(2px);opacity:.25}
+  .auth-hero .b1{width:340px;height:340px;background:#fff;top:-120px;right:-90px;opacity:.12}
+  .auth-hero .b2{width:260px;height:260px;background:#0ea5e9;bottom:-110px;left:-60px;opacity:.3}
+  .hero-brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:19px;position:relative;z-index:1}
+  .hero-logo{width:44px;height:44px;border-radius:12px;overflow:hidden;display:grid;place-items:center;line-height:0}
+  .hero-logo svg,.hero-logo img{width:100%;height:100%;object-fit:contain;display:block}
+  .hero-art{flex:1;display:grid;place-items:center;position:relative;z-index:1;min-height:0;padding:24px 0}
+  .hero-logo-wrap{width:168px;height:168px;border-radius:30px;background:rgba(255,255,255,.13);
+    border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(6px);display:grid;place-items:center;
+    box-shadow:0 24px 60px rgba(0,0,0,.20);padding:16px}
+  .hero-logo-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:14px}
+  .hero-default-logo{width:160px;height:160px;filter:drop-shadow(0 24px 55px rgba(0,0,0,.30))}
+  .hero-default-logo svg{width:100%;height:100%}
+  .hero-mid{position:relative;z-index:1}
+  .hero-mid h2{font-size:30px;font-weight:800;line-height:1.2;letter-spacing:-.02em;color:#fff;margin-bottom:14px;max-width:15ch}
+  .hero-mid p{font-size:15px;opacity:.9;max-width:34ch;margin:0}
+  .hero-feats{display:flex;flex-direction:column;gap:12px;margin-top:30px;position:relative;z-index:1}
+  .hero-feat{display:flex;align-items:center;gap:12px;font-size:14px;font-weight:500}
+  .hero-feat .fi{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}
+  .auth-form{display:flex;align-items:center;justify-content:center;padding:40px 30px}
+  .auth-card{width:100%;max-width:380px}
+  .auth-card .top{display:flex;justify-content:flex-end;margin-bottom:26px}
+  .role-pick{display:flex;flex-direction:column;gap:14px;margin-top:22px}
+  .role-btn{display:flex;align-items:center;gap:15px;text-align:left;background:#fff;border:1px solid var(--line);
+    border-radius:15px;padding:17px 18px;cursor:pointer;transition:.15s;box-shadow:var(--sh-sm)}
+  .role-btn:hover{border-color:var(--brand-2);box-shadow:var(--sh);transform:translateY(-2px)}
+  .role-btn .ri{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none}
+  .role-btn .rt{font-weight:700;font-size:15px}
+  .role-btn .rd{font-size:12.5px;color:var(--ink-2);margin-top:2px}
+  .role-btn .arr{margin-left:auto;color:var(--muted)}
+  .backlink{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);font-size:13px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;margin-bottom:18px}
+  .backlink:hover{color:var(--brand)}
+  .demo-tag{margin-top:18px;padding:10px 13px;background:var(--panel-2);border:1px dashed var(--line);border-radius:10px;font-size:12.5px;color:var(--ink-2)}
+  @media(max-width:860px){.auth{grid-template-columns:1fr}.auth-hero{display:none}}
+
+  /* ================= APP SHELL ================= */
+  .shell{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+  .sidebar{background:var(--panel);border-right:1px solid var(--line);padding:20px 16px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .side-brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:16px;padding:6px 8px 18px}
+  .side-logo{width:38px;height:38px;border-radius:11px;overflow:hidden;display:grid;place-items:center;line-height:0;flex:none}
+  .side-logo svg,.side-logo img{width:100%;height:100%;object-fit:contain;display:block}
+  .nav{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:11px;cursor:pointer;
+    font-weight:600;font-size:14px;color:var(--ink-2);background:none;border:none;width:100%;text-align:left;transition:.12s}
+  .nav-item:hover{background:var(--panel-2);color:var(--ink)}
+  .nav-item.active{background:var(--brand-soft);color:var(--brand-d)}
+  .nav-item .badge{margin-left:auto;background:var(--gas);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;padding:0 6px;border-radius:999px;display:grid;place-items:center}
+  .side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line)}
+  .user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:11px}
+  .user-av{width:34px;height:34px;border-radius:50%;background:var(--brand-soft);color:var(--brand-d);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+  .user-chip .un{font-weight:600;font-size:13px;line-height:1.2}
+  .user-chip .ur{font-size:11.5px;color:var(--muted)}
+
+  .main{display:flex;flex-direction:column;min-width:0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 28px;
+    border-bottom:1px solid var(--line);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  .topbar .pg{font-weight:700;font-size:17px}
+  .topbar .rt{display:flex;align-items:center;gap:12px}
+  .content{padding:26px 28px 60px;max-width:1080px;width:100%}
+
+  .mob-top{display:none}
+  .mob-nav{display:none}
+  @media(max-width:820px){
+    .shell{grid-template-columns:1fr}
+    .sidebar{display:none}
+    .topbar{display:none}
+    .mob-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(255,255,255,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);gap:10px;position:sticky;top:0;z-index:6}
+    /* clean underline tab bar */
+    .mob-nav{display:flex;gap:2px;overflow-x:auto;padding:0 8px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);position:sticky;top:57px;z-index:5;scrollbar-width:none}
+    .mob-nav::-webkit-scrollbar{display:none}
+    .mob-nav button{flex:none;display:inline-flex;align-items:center;gap:7px;padding:14px 12px 11px;border:none;background:none;
+      font-weight:600;font-size:13.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap;position:relative;transition:.15s}
+    .mob-nav button svg{width:17px;height:17px;opacity:.85}
+    .mob-nav button:hover{color:var(--ink)}
+    .mob-nav button.active{color:var(--brand)}
+    .mob-nav button.active::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:3px;border-radius:3px 3px 0 0;background:var(--grad)}
+    .mob-nav .mdot{width:7px;height:7px;border-radius:50%;background:var(--gas);margin-left:-3px;align-self:flex-start;margin-top:2px}
+    .content{padding:22px 16px 56px}
+  }
+
+  /* ---------- invoice statement ---------- */
+  .invoice{border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--sh)}
+  .inv-head{background:var(--grad);color:#fff;padding:22px 24px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px}
+  .inv-head .lbl{font-size:12px;opacity:.85;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .inv-head .big{font-size:21px;font-weight:800;margin-top:2px}
+  .inv-head .tot{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .inv-body{padding:6px 24px 22px}
+  .inv-foot-note{padding:14px 24px;background:var(--panel-2);font-size:12.5px;color:var(--ink-2);border-top:1px solid var(--line)}
+  .util-cell{display:flex;align-items:center;gap:9px;font-weight:600}
+  .util-dot{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+  .search-wrap{position:relative;display:flex;align-items:center}
+  .search-wrap > svg{position:absolute;left:13px;color:var(--muted);pointer-events:none}
+  .search-wrap input{padding-left:38px}
+  .own-row{cursor:pointer}
+  .own-row:hover{background:var(--brand-soft)}
+  .own-row.active{background:var(--brand-soft)}
+  .own-row.active td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+  .formula-vars{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:11px 14px;font-size:12.5px;color:var(--ink-2);line-height:1.7}
+  .formula-vars{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .fx-row{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0b1220}
+  .fx-eq{display:grid;place-items:center;padding:0 14px;background:#111c30;color:#7dd3fc;font-family:ui-monospace,monospace;font-weight:700}
+  .fx-input{border:none;border-radius:0;background:#0b1220;color:#e2f3ff;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;padding:13px 14px}
+  .fx-input:focus{outline:none;box-shadow:inset 0 0 0 2px var(--brand-2)}
+  .fx-input.bad{color:#fecaca;box-shadow:inset 0 0 0 2px #b91c1c}
+  .fx-status{min-height:18px;margin-top:6px;font-size:12.5px}
+  .fx-ok{color:var(--ok);font-weight:600;display:inline-flex;align-items:center;gap:5px}
+  .fx-err{color:var(--bad);font-weight:600}
+  .logo-box{width:104px;height:104px;border-radius:18px;border:1px solid var(--line);background:var(--panel-2);
+    display:grid;place-items:center;padding:12px;flex:none}
+  .logo-box img,.logo-box svg{display:block}
+  .empty{text-align:center;padding:34px 16px;color:var(--muted)}
+  .empty .ei{width:52px;height:52px;border-radius:14px;background:var(--panel-2);display:grid;place-items:center;margin:0 auto 12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ===================== ICONS ===================== */
+const IC={
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  house:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/>',
+  rates:'<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/><path d="M15.5 16.5 17 18l2.5-2.5"/>',
+  meter:'<circle cx="12" cy="12" r="9"/><path d="M12 12l3.5-3.5"/><path d="M12 3v2M21 12h-2M12 21v-2M3 12h2"/>',
+  invoice:'<path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/>',
+  approve:'<path d="M16 11l2 2 4-4"/><circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.5 3-6 7-6"/>',
+  water:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  gas:'<path d="M12 3c1 3-2 4-2 7a2 2 0 0 0 4 0M8 13a4 4 0 1 0 8 0c0-3-2-4-2-7-3 2-6 4-6 7z"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
+  arrow:'<path d="M9 6l6 6-6 6"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 2.5 15 0 18M12 3c-2.5 2.5-2.5 15 0 18"/>',
+  back:'<path d="M15 6l-6 6 6 6"/>',
+  doc:'<path d="M6 2h9l4 4v16H6z"/><path d="M14 2v5h5"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.5 12a7.5 7.5 0 0 0-.1-1.3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.2-1.3L14.4 2h-4l-.4 2.4a7.5 7.5 0 0 0-2.2 1.3l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.2 1.3l.4 2.4h4l.4-2.4a7.5 7.5 0 0 0 2.2-1.3l2.4 1 2-3.4-2-1.6c.1-.4.1-.9.1-1.3z"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/>',
+  upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>'
+};
+const svg=(n,c='icn')=>`<svg viewBox="0 0 24 24" class="${c}">${IC[n]||''}</svg>`;
+
+/* ===================== i18n ===================== */
+const I18N = {
+  en:{
+    appName:"MCTS Billing", logout:"Log out",
+    welcome:"Welcome back", chooseRole:"Sign in to the MCTS community portal",
+    heroTitle:"Fair, transparent utility billing for our community",
+    heroSub:"Water and gas charges calculated straight from your meter readings — no guesswork.",
+    feat1:"Meter-based billing", feat2:"Clear monthly statements", feat3:"Available in 3 languages",
+    adminLogin:"Administrator", ownerLogin:"Home Owner",
+    adminDesc:"Manage houses, rates, readings & approvals.",
+    ownerDesc:"View your water & gas invoices.",
+    username:"Username", password:"Password", login:"Sign in", back:"Back",
+    demoCreds:"Demo admin — username: admin · password: admin123",
+    invalidLogin:"Incorrect username or password.",
+    nav_dash:"Dashboard", tHouses:"Houses", tRates:"Rates & Formula", tReadings:"Meter Readings", tInvoices:"Invoices", tApprovals:"Approvals",
+    pageDash:"Dashboard",
+    housesTitle:"Houses", housesSub:"Add and organise townhouses by cluster or house number.",
+    addHouse:"Add house", cluster:"Cluster", houseNo:"House No.", owner:"Owner name", actions:"",
+    optional:"optional", save:"Save", cancel:"Cancel", edit:"Edit", del:"Delete",
+    confirmDel:"Delete this house and its readings?", noHouses:"No houses yet — add your first one above.",
+    clusterHelp:"Group houses into clusters (e.g. Zone A), or leave blank to use house numbers only.",
+    ratesTitle:"Rates & Calculation Formula", ratesSub:"Set unit rates and fixed fees. The formula applies to every house automatically.",
+    currency:"Currency", waterRate:"Water rate (per unit)", waterFixed:"Water fixed fee", gasRate:"Gas rate (per unit)", gasFixed:"Gas fixed fee",
+    formulaLabel:"Live calculation formula", saveRates:"Save rates", ratesSaved:"Rates and formula saved.",
+    editFormula:"Charge Formula", editFormulaSub:"Define how each charge is calculated. These expressions apply to every house.",
+    formulaWater:"Water charge", formulaGas:"Gas charge",
+    formulaVars:"Variables: prev, curr, usage (= curr − prev), rate, fixed.  Operators: + − * / ( ).  Functions: min(), max(), round().",
+    formulaInvalid:"Invalid expression — using default until corrected.", formulaValid:"Valid", resetDefault:"Reset to default",
+    formulaPreviewNote:"Preview with prev 100, curr 120 and the rates above:", result:"Result",
+    readingsTitle:"Enter Meter Readings", readingsSub:"Previous readings auto-fill from the last period. The invoice is calculated instantly.",
+    period:"Billing period", selHouse:"House",
+    waterPrev:"Water — previous", waterCurr:"Water — current", gasPrev:"Gas — previous", gasCurr:"Gas — current",
+    saveReading:"Save reading", readingSaved:"Reading saved and invoice calculated.",
+    prevAuto:"Auto-filled from last period", usage:"Usage", charge:"Charge",
+    existingReadings:"Recent readings", noReadings:"No readings recorded yet.",
+    currLessPrev:"Current reading must be greater than or equal to previous.",
+    water:"Water", gas:"Gas", total:"Total",
+    approvalsTitle:"Owner Registration Approvals", approvalsSub:"Confirm that each applicant owns the house they registered for.",
+    pending:"Pending", approved:"Approved", rejected:"Rejected",
+    requestedHouse:"Requested house", status:"Status", approve:"Approve", reject:"Reject",
+    noPending:"No registration requests.", noMatchHouse:"No matching house",
+    approvedMsg:"Owner approved.", rejectedMsg:"Request rejected.",
+    allInvoices:"All Invoices", invoicesSub:"Every calculated statement across the community.",
+    filterPeriod:"Period", allPeriods:"All periods", noInvoices:"No invoices for this selection.",
+    searchInvoices:"Search", searchPlaceholder:"House number, cluster or owner…", searchPlaceholderP:"Month or year, e.g. April or 2026…", noResults:"No invoices match your search.", allHouses:"All houses",
+    downloadPdf:"Download PDF", download:"Download", popupBlocked:"Please allow pop-ups for this page so the PDF can open, then try again.", selectedCount:"selected",
+    address:"Address", addressPh:"e.g. Moo 7, Hang Dong, Hang Dong, Chiang Mai", invNo:"No.",
+    billWater:"Water Bill", billGas:"Gas Bill", nameLabel:"Name",
+    meterCurr:"Current meter reading", meterPrev:"Previous meter reading", unitsUsed:"Units used", unitsWord:"units",
+    serviceCharge:"Charge", amountDue:"Amount payable", receivedBy:"Received by", dateLabel:"Date",
+    statTotalHouses:"Houses", statThisMonth:"Billed this period", statPending:"Pending approvals", statRevenue:"Period revenue",
+    quickReadings:"Latest readings", viewAll:"View all",
+    ownerPortal:"My Invoices", register:"Register", haveAccount:"Have an account? Sign in",
+    needAccount:"New owner? Register here", regTitle:"Register as a Home Owner",
+    regSub:"An administrator will confirm you own this house before your first sign-in.",
+    yourHouseNo:"Your house number", chooseUser:"Choose a username", choosePass:"Choose a password",
+    submitReg:"Submit registration", regPending:"Registration submitted. An administrator must approve your account before you can view invoices.",
+    userTaken:"That username is already taken.", fillAll:"Please fill in all fields.",
+    accPending:"Your account is awaiting administrator approval.",
+    accRejected:"Your registration was not approved. Please contact the management office.",
+    selectYear:"Year", selectPeriod:"Month", noInvoiceP:"No invoice issued for this period yet.",
+    invoiceFor:"Statement", house:"House", item:"Item", prev:"Previous", curr:"Current", rate:"Rate", amount:"Amount",
+    grandTotal:"Total payable", thanks:"Please settle by the due date shown on your statement. Thank you.",
+    myInvoices:"My Invoices", myInvSub:"Search or select an invoice to view your statement.",
+    noYear:"No invoices available yet.", yourHouse:"Your house",
+    nav_settings:"Settings", settingsTitle:"Community Branding", settingsSub:"Upload your community logo and name. The logo appears on the sign-in screen and throughout the portal.",
+    communityName:"Community name", logo:"Logo", uploadLogo:"Upload logo", changeLogo:"Change logo", removeLogo:"Remove",
+    logoHelp:"PNG, JPG or SVG. Square images look best. Max 1.5 MB.", logoTooBig:"Image is too large (max 1.5 MB).", brandingSaved:"Branding saved.", noLogo:"No logo uploaded yet",
+  },
+  zh:{
+    appName:"MCTS 账单", logout:"退出登录",
+    welcome:"欢迎回来", chooseRole:"登录 MCTS 社区门户",
+    heroTitle:"为社区提供公平透明的公用事业账单",
+    heroSub:"水费与燃气费直接根据您的抄表数据计算——清晰无误。",
+    feat1:"按表计费", feat2:"清晰的月度账单", feat3:"支持三种语言",
+    adminLogin:"管理员", ownerLogin:"业主",
+    adminDesc:"管理房屋、费率、抄表与审核。", ownerDesc:"查看您的水费与燃气账单。",
+    username:"用户名", password:"密码", login:"登录", back:"返回",
+    demoCreds:"演示管理员 — 用户名：admin · 密码：admin123",
+    invalidLogin:"用户名或密码错误。",
+    nav_dash:"概览", tHouses:"房屋", tRates:"费率与公式", tReadings:"抄表录入", tInvoices:"账单", tApprovals:"审核",
+    pageDash:"概览",
+    housesTitle:"房屋管理", housesSub:"按组团或门牌号添加和整理联排别墅。",
+    addHouse:"添加房屋", cluster:"组团/区", houseNo:"门牌号", owner:"业主姓名", actions:"",
+    optional:"选填", save:"保存", cancel:"取消", edit:"编辑", del:"删除",
+    confirmDel:"删除该房屋及其抄表记录？", noHouses:"暂无房屋——请在上方添加第一个。",
+    clusterHelp:"可将房屋按组团分组（如 A 区），或留空仅使用门牌号。",
+    ratesTitle:"费率与计算公式", ratesSub:"设置单价与固定费用，公式会自动应用于所有房屋。",
+    currency:"货币", waterRate:"水费单价（每单位）", waterFixed:"水费固定费用", gasRate:"燃气单价（每单位）", gasFixed:"燃气固定费用",
+    formulaLabel:"实时计算公式", saveRates:"保存费率", ratesSaved:"费率与公式已保存。",
+    editFormula:"计费公式", editFormulaSub:"定义每项费用的计算方式。以下表达式适用于所有房屋。",
+    formulaWater:"水费", formulaGas:"燃气费",
+    formulaVars:"变量：prev（上期）、curr（本期）、usage（= curr − prev）、rate（单价）、fixed（固定费）。运算符：+ − * / ( )。函数：min()、max()、round()。",
+    formulaInvalid:"表达式无效——修正前使用默认公式。", formulaValid:"有效", resetDefault:"恢复默认",
+    formulaPreviewNote:"以 prev 100、curr 120 及上方费率预览：", result:"结果",
+    readingsTitle:"录入抄表数据", readingsSub:"上期读数会自动填充，账单即时计算。",
+    period:"账单周期", selHouse:"房屋",
+    waterPrev:"水表 — 上期", waterCurr:"水表 — 本期", gasPrev:"燃气 — 上期", gasCurr:"燃气 — 本期",
+    saveReading:"保存抄表", readingSaved:"抄表已保存，账单已计算。",
+    prevAuto:"已根据上期自动填充", usage:"用量", charge:"费用",
+    existingReadings:"近期抄表", noReadings:"暂无抄表记录。",
+    currLessPrev:"本期读数必须大于或等于上期读数。",
+    water:"水", gas:"燃气", total:"合计",
+    approvalsTitle:"业主注册审核", approvalsSub:"确认每位申请人确实拥有其注册的房屋。",
+    pending:"待审核", approved:"已通过", rejected:"已拒绝",
+    requestedHouse:"申请门牌号", status:"状态", approve:"通过", reject:"拒绝",
+    noPending:"暂无注册申请。", noMatchHouse:"无匹配房屋",
+    approvedMsg:"业主已通过审核。", rejectedMsg:"申请已拒绝。",
+    allInvoices:"全部账单", invoicesSub:"社区内所有已计算的账单。",
+    filterPeriod:"周期", allPeriods:"全部周期", noInvoices:"该筛选条件下暂无账单。",
+    searchInvoices:"搜索", searchPlaceholder:"门牌号、组团或业主…", searchPlaceholderP:"月份或年份，如 4月 或 2026…", noResults:"没有符合搜索条件的账单。", allHouses:"全部房屋",
+    downloadPdf:"下载 PDF", download:"下载", popupBlocked:"请允许本页弹出窗口以打开 PDF，然后重试。", selectedCount:"已选",
+    address:"地址", addressPh:"例如：Moo 7, Hang Dong, 清迈", invNo:"单号",
+    billWater:"水费通知单", billGas:"燃气费通知单", nameLabel:"姓名",
+    meterCurr:"本期抄表", meterPrev:"上期抄表", unitsUsed:"用量", unitsWord:"单位",
+    serviceCharge:"费用", amountDue:"应付金额", receivedBy:"收款人", dateLabel:"日期",
+    statTotalHouses:"房屋数", statThisMonth:"本期已出账", statPending:"待审核", statRevenue:"本期收入",
+    quickReadings:"最新抄表", viewAll:"查看全部",
+    ownerPortal:"我的账单", register:"注册", haveAccount:"已有账号？登录",
+    needAccount:"新业主？点此注册", regTitle:"业主注册",
+    regSub:"管理员将在您首次登录前确认您拥有该房屋。",
+    yourHouseNo:"您的门牌号", chooseUser:"设置用户名", choosePass:"设置密码",
+    submitReg:"提交注册", regPending:"注册已提交。需管理员审核通过后方可查看账单。",
+    userTaken:"该用户名已被使用。", fillAll:"请填写所有字段。",
+    accPending:"您的账号正在等待管理员审核。",
+    accRejected:"您的注册未通过审核，请联系物业办公室。",
+    selectYear:"年份", selectPeriod:"月份", noInvoiceP:"该周期暂未出账单。",
+    invoiceFor:"账单", house:"房屋", item:"项目", prev:"上期", curr:"本期", rate:"单价", amount:"金额",
+    grandTotal:"应付总额", thanks:"请在账单注明的到期日前完成缴费，谢谢。",
+    myInvoices:"我的账单", myInvSub:"搜索或选择账单以查看明细。",
+    noYear:"暂无可用账单。", yourHouse:"您的房屋",
+    nav_settings:"设置", settingsTitle:"社区品牌", settingsSub:"上传社区标志和名称。标志将显示在登录页面及整个门户中。",
+    communityName:"社区名称", logo:"标志", uploadLogo:"上传标志", changeLogo:"更换标志", removeLogo:"移除",
+    logoHelp:"支持 PNG、JPG 或 SVG。方形图片效果最佳。最大 1.5 MB。", logoTooBig:"图片过大（最大 1.5 MB）。", brandingSaved:"品牌设置已保存。", noLogo:"尚未上传标志",
+  },
+  th:{
+    appName:"ระบบบิล MCTS", logout:"ออกจากระบบ",
+    welcome:"ยินดีต้อนรับ", chooseRole:"เข้าสู่ระบบพอร์ทัลชุมชน MCTS",
+    heroTitle:"ค่าสาธารณูปโภคที่เป็นธรรมและโปร่งใสสำหรับชุมชนของเรา",
+    heroSub:"ค่าน้ำและค่าแก๊สคำนวณจากค่ามิเตอร์ของคุณโดยตรง ชัดเจน ตรวจสอบได้",
+    feat1:"คิดค่าตามมิเตอร์", feat2:"ใบแจ้งหนี้รายเดือนชัดเจน", feat3:"รองรับ 3 ภาษา",
+    adminLogin:"ผู้ดูแลระบบ", ownerLogin:"เจ้าของบ้าน",
+    adminDesc:"จัดการบ้าน อัตรา การจดมิเตอร์ และการอนุมัติ", ownerDesc:"ดูใบแจ้งหนี้ค่าน้ำและค่าแก๊สของคุณ",
+    username:"ชื่อผู้ใช้", password:"รหัสผ่าน", login:"เข้าสู่ระบบ", back:"กลับ",
+    demoCreds:"ผู้ดูแลตัวอย่าง — ชื่อผู้ใช้: admin · รหัสผ่าน: admin123",
+    invalidLogin:"ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+    nav_dash:"ภาพรวม", tHouses:"บ้าน", tRates:"อัตรา & สูตร", tReadings:"จดมิเตอร์", tInvoices:"ใบแจ้งหนี้", tApprovals:"อนุมัติ",
+    pageDash:"ภาพรวม",
+    housesTitle:"จัดการบ้าน", housesSub:"เพิ่มและจัดระเบียบทาวน์เฮาส์ตามกลุ่มหรือบ้านเลขที่",
+    addHouse:"เพิ่มบ้าน", cluster:"กลุ่ม/โซน", houseNo:"บ้านเลขที่", owner:"ชื่อเจ้าของ", actions:"",
+    optional:"ไม่บังคับ", save:"บันทึก", cancel:"ยกเลิก", edit:"แก้ไข", del:"ลบ",
+    confirmDel:"ลบบ้านหลังนี้และข้อมูลมิเตอร์?", noHouses:"ยังไม่มีบ้าน — เพิ่มหลังแรกด้านบน",
+    clusterHelp:"จัดกลุ่มบ้านเป็นโซน (เช่น โซน A) หรือเว้นว่างใช้เฉพาะบ้านเลขที่",
+    ratesTitle:"อัตราและสูตรคำนวณ", ratesSub:"ตั้งอัตราต่อหน่วยและค่าคงที่ สูตรจะใช้กับทุกบ้านโดยอัตโนมัติ",
+    currency:"สกุลเงิน", waterRate:"ค่าน้ำต่อหน่วย", waterFixed:"ค่าน้ำคงที่", gasRate:"ค่าแก๊สต่อหน่วย", gasFixed:"ค่าแก๊สคงที่",
+    formulaLabel:"สูตรคำนวณแบบเรียลไทม์", saveRates:"บันทึกอัตรา", ratesSaved:"บันทึกอัตราและสูตรแล้ว",
+    editFormula:"สูตรคิดค่าบริการ", editFormulaSub:"กำหนดวิธีคำนวณค่าบริการแต่ละรายการ สูตรเหล่านี้ใช้กับทุกบ้าน",
+    formulaWater:"ค่าน้ำ", formulaGas:"ค่าแก๊ส",
+    formulaVars:"ตัวแปร: prev (ครั้งก่อน), curr (ปัจจุบัน), usage (= curr − prev), rate (อัตรา), fixed (ค่าคงที่)  ตัวดำเนินการ: + − * / ( )  ฟังก์ชัน: min(), max(), round()",
+    formulaInvalid:"สูตรไม่ถูกต้อง — ใช้สูตรเริ่มต้นจนกว่าจะแก้ไข", formulaValid:"ถูกต้อง", resetDefault:"รีเซ็ตเป็นค่าเริ่มต้น",
+    formulaPreviewNote:"ดูตัวอย่างด้วย prev 100, curr 120 และอัตราด้านบน:", result:"ผลลัพธ์",
+    readingsTitle:"บันทึกค่ามิเตอร์", readingsSub:"ค่าครั้งก่อนเติมอัตโนมัติจากรอบที่แล้ว คำนวณใบแจ้งหนี้ทันที",
+    period:"รอบบิล", selHouse:"บ้าน",
+    waterPrev:"น้ำ — ครั้งก่อน", waterCurr:"น้ำ — ปัจจุบัน", gasPrev:"แก๊ส — ครั้งก่อน", gasCurr:"แก๊ส — ปัจจุบัน",
+    saveReading:"บันทึกค่ามิเตอร์", readingSaved:"บันทึกและคำนวณใบแจ้งหนี้แล้ว",
+    prevAuto:"เติมอัตโนมัติจากรอบก่อน", usage:"หน่วยที่ใช้", charge:"ค่าใช้จ่าย",
+    existingReadings:"การจดมิเตอร์ล่าสุด", noReadings:"ยังไม่มีการบันทึก",
+    currLessPrev:"ค่าปัจจุบันต้องมากกว่าหรือเท่ากับค่าครั้งก่อน",
+    water:"น้ำ", gas:"แก๊ส", total:"รวม",
+    approvalsTitle:"อนุมัติการลงทะเบียนเจ้าของบ้าน", approvalsSub:"ยืนยันว่าผู้สมัครแต่ละรายเป็นเจ้าของบ้านที่ลงทะเบียนจริง",
+    pending:"รออนุมัติ", approved:"อนุมัติแล้ว", rejected:"ปฏิเสธ",
+    requestedHouse:"บ้านที่ขอ", status:"สถานะ", approve:"อนุมัติ", reject:"ปฏิเสธ",
+    noPending:"ไม่มีคำขอลงทะเบียน", noMatchHouse:"ไม่พบบ้านที่ตรงกัน",
+    approvedMsg:"อนุมัติเจ้าของบ้านแล้ว", rejectedMsg:"ปฏิเสธคำขอแล้ว",
+    allInvoices:"ใบแจ้งหนี้ทั้งหมด", invoicesSub:"ใบแจ้งหนี้ที่คำนวณแล้วทั้งหมดในชุมชน",
+    filterPeriod:"รอบ", allPeriods:"ทุกรอบ", noInvoices:"ไม่มีใบแจ้งหนี้ตามที่เลือก",
+    searchInvoices:"ค้นหา", searchPlaceholder:"บ้านเลขที่ กลุ่ม หรือเจ้าของ…", searchPlaceholderP:"เดือนหรือปี เช่น เมษายน หรือ 2026…", noResults:"ไม่พบใบแจ้งหนี้ที่ตรงกับการค้นหา", allHouses:"บ้านทั้งหมด",
+    downloadPdf:"ดาวน์โหลด PDF", download:"ดาวน์โหลด", popupBlocked:"โปรดอนุญาตป๊อปอัปสำหรับหน้านี้เพื่อเปิด PDF แล้วลองอีกครั้ง", selectedCount:"ที่เลือก",
+    address:"ที่อยู่", addressPh:"เช่น หมู่ที่ 7 ต.หางดง อ.หางดง จ.เชียงใหม่", invNo:"เลขที่",
+    billWater:"ใบแจ้งค่าน้ำประปา", billGas:"ใบแจ้งค่าแก๊ส", nameLabel:"ชื่อ",
+    meterCurr:"จดมาตรครั้งหลัง", meterPrev:"จดมาตรครั้งก่อน", unitsUsed:"จำนวนที่ใช้", unitsWord:"หน่วย",
+    serviceCharge:"ค่าบริการ", amountDue:"เป็นจำนวนเงิน", receivedBy:"ผู้รับเงิน", dateLabel:"วัน/เดือน/ปี",
+    statTotalHouses:"จำนวนบ้าน", statThisMonth:"ออกบิลรอบนี้", statPending:"รออนุมัติ", statRevenue:"รายได้รอบนี้",
+    quickReadings:"การจดมิเตอร์ล่าสุด", viewAll:"ดูทั้งหมด",
+    ownerPortal:"ใบแจ้งหนี้ของฉัน", register:"ลงทะเบียน", haveAccount:"มีบัญชีแล้ว? เข้าสู่ระบบ",
+    needAccount:"เจ้าของบ้านใหม่? ลงทะเบียนที่นี่", regTitle:"ลงทะเบียนเจ้าของบ้าน",
+    regSub:"ผู้ดูแลจะยืนยันว่าคุณเป็นเจ้าของบ้านก่อนการเข้าสู่ระบบครั้งแรก",
+    yourHouseNo:"บ้านเลขที่ของคุณ", chooseUser:"ตั้งชื่อผู้ใช้", choosePass:"ตั้งรหัสผ่าน",
+    submitReg:"ส่งการลงทะเบียน", regPending:"ส่งการลงทะเบียนแล้ว ผู้ดูแลต้องอนุมัติก่อนจึงจะดูใบแจ้งหนี้ได้",
+    userTaken:"ชื่อผู้ใช้นี้ถูกใช้แล้ว", fillAll:"กรุณากรอกข้อมูลให้ครบ",
+    accPending:"บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแล",
+    accRejected:"การลงทะเบียนไม่ได้รับอนุมัติ กรุณาติดต่อสำนักงานนิติบุคคล",
+    selectYear:"ปี", selectPeriod:"เดือน", noInvoiceP:"ยังไม่มีใบแจ้งหนี้สำหรับรอบนี้",
+    invoiceFor:"ใบแจ้งหนี้", house:"บ้าน", item:"รายการ", prev:"ครั้งก่อน", curr:"ปัจจุบัน", rate:"อัตรา", amount:"จำนวนเงิน",
+    grandTotal:"ยอดชำระทั้งสิ้น", thanks:"กรุณาชำระภายในวันครบกำหนดในใบแจ้งหนี้ ขอบคุณ",
+    myInvoices:"ใบแจ้งหนี้ของฉัน", myInvSub:"ค้นหาหรือเลือกใบแจ้งหนี้เพื่อดูรายละเอียด",
+    noYear:"ยังไม่มีใบแจ้งหนี้", yourHouse:"บ้านของคุณ",
+    nav_settings:"ตั้งค่า", settingsTitle:"แบรนด์ชุมชน", settingsSub:"อัปโหลดโลโก้และชื่อชุมชน โลโก้จะแสดงบนหน้าเข้าสู่ระบบและทั่วทั้งพอร์ทัล",
+    communityName:"ชื่อชุมชน", logo:"โลโก้", uploadLogo:"อัปโหลดโลโก้", changeLogo:"เปลี่ยนโลโก้", removeLogo:"ลบ",
+    logoHelp:"PNG, JPG หรือ SVG รูปสี่เหลี่ยมจัตุรัสดูดีที่สุด สูงสุด 1.5 MB", logoTooBig:"รูปภาพใหญ่เกินไป (สูงสุด 1.5 MB)", brandingSaved:"บันทึกแบรนด์แล้ว", noLogo:"ยังไม่ได้อัปโหลดโลโก้",
+  }
+};
+const MONTHS = {
+  en:["January","February","March","April","May","June","July","August","September","October","November","December"],
+  zh:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+  th:["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]
+};
+let lang = localStorage.getItem('mcts_lang') || 'en';
+const t = k => (I18N[lang][k] ?? I18N.en[k] ?? k);
+
+/* ===================== API + Data layer ===================== */
+const DEFAULT_FORMULA="(curr - prev) * rate + fixed";
+const uid = p => p+Math.random().toString(36).slice(2,8);
+
+let session = JSON.parse(sessionStorage.getItem('mcts_sess')||'null');
+function setSession(s){ session=s; if(s) sessionStorage.setItem('mcts_sess',JSON.stringify(s)); else sessionStorage.removeItem('mcts_sess'); }
+
+async function api(path, { method='GET', body, auth=true } = {}){
+  const headers = { 'Content-Type':'application/json' };
+  if(auth && session && session.token) headers['Authorization']='Bearer '+session.token;
+  const res = await fetch(path, { method, headers, body: body!==undefined?JSON.stringify(body):undefined });
+  let data=null; try{ data=await res.json(); }catch(e){}
+  if(!res.ok){ const err=new Error((data&&data.error)||('HTTP '+res.status)); err.status=res.status; err.data=data; throw err; }
+  return data;
+}
+
+// Client cache shaped like the original db (so all render code works unchanged).
+let db = {
+  settings:{logo:null, communityName:'MCTS', address:''},
+  rates:{currency:'THB', waterRate:18, waterFixed:30, gasRate:25, gasFixed:20},
+  formula:{water:DEFAULT_FORMULA, gas:DEFAULT_FORMULA},
+  houses:[], readings:[], owners:[],
+};
+const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'' });
+const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:r.period,
+  waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
+  waterNo:r.waterNo, gasNo:r.gasNo });
+const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
+function applySettings(s){
+  db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'' };
+  db.rates={ currency:s.currency||'THB', waterRate:Number(s.water_rate), waterFixed:Number(s.water_fixed), gasRate:Number(s.gas_rate), gasFixed:Number(s.gas_fixed) };
+  db.formula={ water:s.formula_water||DEFAULT_FORMULA, gas:s.formula_gas||DEFAULT_FORMULA };
+}
+async function loadBranding(){
+  try{ const b=await api('/api/branding',{auth:false});
+    db.settings={ logo:b.logo||null, communityName:b.communityName||'MCTS', address:b.address||'' };
+  }catch(e){}
+}
+async function loadAdmin(){
+  const d=await api('/api/admin/bootstrap');
+  applySettings(d.settings);
+  db.houses=d.houses.map(normHouse);
+  db.readings=d.readings.map(normReading);
+  db.owners=d.owners.map(normOwner);
+}
+async function refreshOwners(){ try{ db.owners=(await api('/api/admin/owners')).map(normOwner); }catch(e){} }
+async function loadOwner(){
+  const d=await api('/api/owner/bootstrap');
+  db.settings={ logo:d.branding.logo||null, communityName:d.branding.communityName||'MCTS', address:d.branding.address||'' };
+  db.rates=d.rates;
+  db.formula={ water:d.formulaWater||DEFAULT_FORMULA, gas:d.formulaGas||DEFAULT_FORMULA };
+  db.houses=d.house?[{ id:'1', cluster:d.house.cluster||'', houseNumber:d.house.houseNumber, ownerName:d.house.ownerName||'' }]:[];
+  db.readings=(d.invoices||[]).map(r=>({ id:String(r.id), houseId:'1', period:r.period,
+    waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
+    waterNo:r.waterNo, gasNo:r.gasNo }));
+}
+// Whole-state persistence (admin only): houses + readings + settings/rates/formula.
+let _saveTimer=null;
+function buildState(){
+  const idToNo=Object.fromEntries(db.houses.map(h=>[h.id, h.houseNumber]));
+  return {
+    settings:{ communityName:db.settings.communityName, address:db.settings.address, logo:db.settings.logo,
+      currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
+      gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas },
+    houses: db.houses.map(h=>({ cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName })),
+    readings: db.readings.map(r=>({ houseNumber:idToNo[r.houseId]||r.houseNumber, period:r.period,
+      waterPrev:r.waterPrev, waterCurr:r.waterCurr, gasPrev:r.gasPrev, gasCurr:r.gasCurr })),
+  };
+}
+function save(){
+  if(!session || session.role!=='admin') return;
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async ()=>{
+    try{ const d=await api('/api/admin/state',{method:'PUT',body:buildState()});
+      if(d&&d.houses){ db.houses=d.houses.map(normHouse); db.readings=d.readings.map(normReading); applySettings(d.settings); }
+    }catch(e){ console.error('save failed',e); alert('Could not save to the server: '+e.message); }
+  }, 350);
+}
+
+/* ===================== Helpers ===================== */
+const ADMIN={user:'admin',pass:'admin123'};
+function money(n){ return db.rates.currency+" "+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function displayYear(y){ return lang==='th' ? (parseInt(y,10)+543) : parseInt(y,10); }  // Thai shows Buddhist Era (CE+543)
+function periodLabel(p){ const [y,m]=p.split('-'); return MONTHS[lang][parseInt(m,10)-1]+" "+displayYear(y); }
+function formatDate(d){
+  try{
+    if(lang==='th') return d.toLocaleDateString('th-TH-u-ca-buddhist',{day:'numeric',month:'short',year:'numeric'});
+    if(lang==='zh') return d.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric'});
+    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  }catch(e){ return d.toISOString().slice(0,10); }
+}
+function houseByNumber(no){ return db.houses.find(h=>h.houseNumber.toLowerCase()===String(no).toLowerCase()); }
+function houseById(id){ return db.houses.find(h=>h.id===id); }
+const FVARS=['prev','curr','usage','rate','fixed','min','max','round','abs'];
+function compileFormula(expr){
+  if(typeof expr!=='string'||!expr.trim()) return null;
+  let test=expr;
+  FVARS.forEach(v=>{ test=test.replace(new RegExp('\\b'+v+'\\b','g'),' '); });
+  if(/[^0-9.+\-*/()%,\s]/.test(test)) return null;   // only numbers & operators may remain
+  try{
+    const fn=new Function('prev','curr','usage','rate','fixed','min','max','round','abs','"use strict";return ('+expr+');');
+    const probe=fn(100,120,20,18,30,Math.min,Math.max,Math.round,Math.abs);
+    if(typeof probe!=='number'||!isFinite(probe)) return null;
+    return fn;
+  }catch(e){ return null; }
+}
+function evalFormula(expr,prev,curr,rate,fixed){
+  const fn=compileFormula(expr); if(!fn) return NaN;
+  try{ const v=fn(prev,curr,curr-prev,rate,fixed,Math.min,Math.max,Math.round,Math.abs); return (typeof v==='number'&&isFinite(v))?v:NaN; }catch(e){ return NaN; }
+}
+function calcInvoice(r){
+  const R=db.rates, F=db.formula||{};
+  const wU=r.waterCurr-r.waterPrev, gU=r.gasCurr-r.gasPrev;
+  let wC=evalFormula(F.water,r.waterPrev,r.waterCurr,R.waterRate,R.waterFixed);
+  let gC=evalFormula(F.gas,r.gasPrev,r.gasCurr,R.gasRate,R.gasFixed);
+  if(isNaN(wC)) wC=wU*R.waterRate+R.waterFixed;
+  if(isNaN(gC)) gC=gU*R.gasRate+R.gasFixed;
+  return {wU,gU,wC,gC,total:wC+gC};
+}
+function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function initials(s){ return String(s||'?').trim().slice(0,2).toUpperCase(); }
+const DEFAULT_LOGO='<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="mctsLg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f766e"/><stop offset=".55" stop-color="#14b8a6"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient></defs><rect x="3" y="3" width="58" height="58" rx="16" fill="url(#mctsLg)"/><path d="M16 31 L32 18 L48 31" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 30 V44.5 a1.6 1.6 0 0 0 1.6 1.6 H42.4 A1.6 1.6 0 0 0 44 44.5 V30" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 31.5 c2.9 3.5 4.5 5.6 4.5 7.9 a4.5 4.5 0 0 1 -9 0 c0 -2.3 1.6 -4.4 4.5 -7.9 Z" fill="#fff"/></svg>';
+function brandName(){ return esc((db.settings&&db.settings.communityName)||'MCTS'); }
+function brandLogo(){ const s=db.settings||{}; return s.logo?`<img src="${s.logo}" alt="${brandName()}" style="width:100%;height:100%;object-fit:contain">`:DEFAULT_LOGO; }
+function brandMark(){ return `<span style="display:block;width:100%;height:100%;line-height:0">${brandLogo()}</span>`; }
+function setFavicon(){
+  const s=db.settings||{};
+  const href = s.logo ? s.logo : 'data:image/svg+xml,'+encodeURIComponent(DEFAULT_LOGO);
+  let link=document.querySelector('link[rel="icon"]');
+  if(!link){ link=document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+  link.setAttribute('type', s.logo ? '' : 'image/svg+xml');
+  link.href=href;
+}
+
+/* ===================== Router ===================== */
+function render(){
+  document.documentElement.lang = lang;
+  document.title = brandName()+' · Utility Billing';
+  setFavicon();
+  const app=document.getElementById('app');
+  if(!session){ app.innerHTML=viewLanding(); bindLanding(); }
+  else if(session.role==='admin'){ app.innerHTML=viewAdmin(); bindAdmin(); }
+  else { app.innerHTML=viewOwner(); bindOwner(); }
+}
+function langBar(){
+  return `<div class="lang">${['en','zh','th'].map(l=>`<button data-setlang="${l}" class="${l===lang?'active':''}">${{en:'EN',zh:'中文',th:'ไทย'}[l]}</button>`).join('')}</div>`;
+}
+function bindLang(scope=document){
+  scope.querySelectorAll('[data-setlang]').forEach(b=>b.onclick=()=>{lang=b.dataset.setlang;localStorage.setItem('mcts_lang',lang);render();});
+}
+
+/* ===================== Landing / Login ===================== */
+let landingMode='home';
+function heroPanel(){
+  const s=db.settings||{};
+  const art = s.logo
+    ? `<div class="hero-logo-wrap"><img src="${s.logo}" alt="${brandName()}" class="hero-logo-img"></div>`
+    : `<div class="hero-default-logo">${DEFAULT_LOGO}</div>`;
+  return `<div class="auth-hero">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <div class="hero-brand"><div class="hero-logo">${brandMark()}</div><span>${brandName()}</span></div>
+    <div class="hero-art">${art}</div>
+    <div class="hero-mid">
+      <h2>${t('heroTitle')}</h2>
+      <p>${t('heroSub')}</p>
+      <div class="hero-feats">
+        <div class="hero-feat"><span class="fi">${svg('meter','icn sm')}</span>${t('feat1')}</div>
+        <div class="hero-feat"><span class="fi">${svg('doc','icn sm')}</span>${t('feat2')}</div>
+        <div class="hero-feat"><span class="fi">${svg('globe','icn sm')}</span>${t('feat3')}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function viewLanding(){
+  let inner='';
+  if(landingMode==='home'){
+    inner=`<h1>${t('welcome')}</h1><p class="sub">${t('chooseRole')}</p>
+      <div class="role-pick">
+        <button class="role-btn" id="goAdmin">
+          <span class="ri ico brand">${svg('shield')}</span>
+          <span><span class="rt">${t('adminLogin')}</span><span class="rd">${t('adminDesc')}</span></span>
+          <span class="arr">${svg('arrow','icn sm')}</span>
+        </button>
+        <button class="role-btn" id="goOwner">
+          <span class="ri ico water">${svg('house')}</span>
+          <span><span class="rt">${t('ownerLogin')}</span><span class="rd">${t('ownerDesc')}</span></span>
+          <span class="arr">${svg('arrow','icn sm')}</span>
+        </button>
+      </div>`;
+  } else if(landingMode==='adminLogin'){
+    inner=`<button class="backlink" id="aBack">${svg('back','icn sm')} ${t('back')}</button>
+      <h1>${t('adminLogin')}</h1><p class="sub">${t('chooseRole')}</p>
+      <div class="field"><label>${t('username')}</label><input id="au" autocomplete="off"></div>
+      <div class="field"><label>${t('password')}</label><input id="ap" type="password"></div>
+      <div id="amsg"></div>
+      <button class="btn block" id="adminGo" style="margin-top:6px">${t('login')}</button>
+      <div class="demo-tag">${t('demoCreds')}</div>`;
+  } else if(landingMode==='ownerLogin'){
+    inner=`<button class="backlink" id="oBack">${svg('back','icn sm')} ${t('back')}</button>
+      <h1>${t('ownerLogin')}</h1><p class="sub">${t('ownerDesc')}</p>
+      <div class="field"><label>${t('username')}</label><input id="ou" autocomplete="off"></div>
+      <div class="field"><label>${t('password')}</label><input id="op" type="password"></div>
+      <div id="omsg"></div>
+      <button class="btn block" id="ownerGo" style="margin-top:6px">${t('login')}</button>
+      <p class="help" style="text-align:center;margin-top:16px"><a href="#" id="toReg">${t('needAccount')}</a></p>`;
+  } else {
+    inner=`<button class="backlink" id="rBack">${svg('back','icn sm')} ${t('back')}</button>
+      <h1>${t('regTitle')}</h1><p class="sub">${t('regSub')}</p>
+      <div class="field"><label>${t('yourHouseNo')}</label><input id="rh" placeholder="A-101"></div>
+      <div class="field"><label>${t('chooseUser')}</label><input id="ru" autocomplete="off"></div>
+      <div class="field"><label>${t('choosePass')}</label><input id="rp" type="password"></div>
+      <div id="rmsg"></div>
+      <button class="btn block" id="regGo" style="margin-top:6px">${t('submitReg')}</button>
+      <p class="help" style="text-align:center;margin-top:16px"><a href="#" id="toLogin">${t('haveAccount')}</a></p>`;
+  }
+  return `<div class="auth">${heroPanel()}
+    <div class="auth-form"><div class="auth-card">
+      <div class="top">${langBar()}</div>${inner}
+    </div></div></div>`;
+}
+function bindLanding(){
+  const $=id=>document.getElementById(id); bindLang();
+  if(landingMode==='home'){ $('goAdmin').onclick=()=>{landingMode='adminLogin';render();}; $('goOwner').onclick=()=>{landingMode='ownerLogin';render();}; }
+  if(landingMode==='adminLogin'){
+    $('aBack').onclick=()=>{landingMode='home';render();};
+    $('adminGo').onclick=async ()=>{
+      try{ const d=await api('/api/auth/admin/login',{method:'POST',auth:false,body:{username:$('au').value.trim(),password:$('ap').value}});
+        setSession({role:'admin',username:d.username,token:d.token}); await loadAdmin(); landingMode='home'; render();
+      }catch(e){ $('amsg').innerHTML=`<div class="notice err">${t('invalidLogin')}</div>`; }
+    };
+  }
+  if(landingMode==='ownerLogin'){
+    $('oBack').onclick=()=>{landingMode='home';render();};
+    $('toReg').onclick=e=>{e.preventDefault();landingMode='ownerRegister';render();};
+    $('ownerGo').onclick=async ()=>{
+      const u=$('ou').value.trim(), p=$('op').value;
+      try{ const d=await api('/api/auth/owner/login',{method:'POST',auth:false,body:{username:u,password:p}});
+        setSession({role:'owner',username:d.username,houseNumber:d.houseNumber,token:d.token}); await loadOwner(); landingMode='home'; render();
+      }catch(e){
+        const code=e.data&&e.data.error;
+        if(code==='pending'){ $('omsg').innerHTML=`<div class="notice info">${t('accPending')}</div>`; }
+        else if(code==='rejected'){ $('omsg').innerHTML=`<div class="notice err">${t('accRejected')}</div>`; }
+        else $('omsg').innerHTML=`<div class="notice err">${t('invalidLogin')}</div>`;
+      }
+    };
+  }
+  if(landingMode==='ownerRegister'){
+    $('rBack').onclick=()=>{landingMode='ownerLogin';render();};
+    $('toLogin').onclick=e=>{e.preventDefault();landingMode='ownerLogin';render();};
+    $('regGo').onclick=async ()=>{
+      const h=$('rh').value.trim(), u=$('ru').value.trim(), p=$('rp').value;
+      if(!h||!u||!p){ $('rmsg').innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
+      try{ await api('/api/auth/owner/register',{method:'POST',auth:false,body:{username:u,password:p,houseNumber:h}});
+        $('rmsg').innerHTML=`<div class="notice ok">${t('regPending')}</div>`; $('rh').value=$('ru').value=$('rp').value='';
+      }catch(e){ $('rmsg').innerHTML=`<div class="notice err">${e.status===409?t('userTaken'):t('fillAll')}</div>`; }
+    };
+  }
+}
+
+/* ===================== ADMIN ===================== */
+let adminTab='dash', editHouseId=null;
+const ADMIN_NAV=[['dash','nav_dash','home'],['houses','tHouses','house'],['rates','tRates','rates'],['readings','tReadings','meter'],['invoices','tInvoices','invoice'],['approvals','tApprovals','approve'],['settings','nav_settings','gear']];
+function viewAdmin(){
+  const pendingCount=db.owners.filter(o=>o.status==='pending').length;
+  const nav=ADMIN_NAV.map(([k,l,ic])=>{
+    const badge=(k==='approvals'&&pendingCount)?`<span class="badge">${pendingCount}</span>`:'';
+    return `<button class="nav-item ${adminTab===k?'active':''}" data-tab="${k}">${svg(ic)} <span>${t(l)}</span>${badge}</button>`;
+  }).join('');
+  const mobNav=ADMIN_NAV.map(([k,l,ic])=>{
+    const dot=(k==='approvals'&&pendingCount)?'<span class="mdot"></span>':'';
+    return `<button class="${adminTab===k?'active':''}" data-tab="${k}">${svg(ic,'icn sm')}<span>${t(l)}</span>${dot}</button>`;
+  }).join('');
+  return `<div class="shell">
+    <aside class="sidebar">
+      <div class="side-brand"><div class="side-logo">${brandMark()}</div><span>${brandName()}</span></div>
+      <nav class="nav">${nav}</nav>
+      <div class="side-foot">
+        <div style="margin-bottom:10px">${langBar()}</div>
+        <div class="user-chip">
+          <div class="user-av">${svg('shield','icn sm')}</div>
+          <div style="flex:1"><div class="un">${t('adminLogin')}</div><div class="ur">MCTS</div></div>
+          <button class="nav-item" style="width:auto;padding:8px" id="logoutBtn" title="${t('logout')}">${svg('logout','icn sm')}</button>
+        </div>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="mob-top">
+        <div class="side-brand" style="padding:0"><div class="side-logo">${brandMark()}</div><span>${brandName()}</span></div>
+        <div style="display:flex;gap:8px;align-items:center">${langBar()}<button class="btn ghost sm" id="logoutBtnM">${svg('logout','icn sm')}</button></div>
+      </div>
+      <div class="mob-nav">${mobNav}</div>
+      <header class="topbar"><div class="pg" id="pgTitle"></div><div class="rt">${langBar()}<button class="btn ghost sm" id="logoutBtnT">${svg('logout','icn sm')} ${t('logout')}</button></div></header>
+      <div class="content" id="adminBody"></div>
+    </div>
+  </div>`;
+}
+function bindAdmin(){
+  bindLang();
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=async ()=>{adminTab=b.dataset.tab;editHouseId=null; if(adminTab==='approvals') await refreshOwners(); render();});
+  ['logoutBtn','logoutBtnM','logoutBtnT'].forEach(id=>{const e=document.getElementById(id); if(e)e.onclick=doLogout;});
+  renderAdminBody();
+}
+function doLogout(){ setSession(null); db.houses=[]; db.readings=[]; db.owners=[]; landingMode='home'; adminTab='dash'; loadBranding().then(render); }
+function renderAdminBody(){
+  const titleMap={dash:'pageDash',houses:'tHouses',rates:'tRates',readings:'tReadings',invoices:'tInvoices',approvals:'tApprovals',settings:'settingsTitle'};
+  const pg=document.getElementById('pgTitle'); if(pg)pg.textContent=t(titleMap[adminTab]);
+  const body=document.getElementById('adminBody');
+  if(adminTab==='dash'){ body.innerHTML=adminDash(); bindDash(); }
+  else if(adminTab==='houses'){ body.innerHTML=adminHouses(); bindHouses(); }
+  else if(adminTab==='rates'){ body.innerHTML=adminRates(); bindRates(); }
+  else if(adminTab==='readings'){ body.innerHTML=adminReadings(); bindReadings(); }
+  else if(adminTab==='invoices'){ body.innerHTML=adminInvoices(); bindAdminInvoices(); }
+  else if(adminTab==='approvals'){ body.innerHTML=adminApprovals(); bindApprovals(); }
+  else { body.innerHTML=adminSettings(); bindSettings(); }
+}
+/* --- Dashboard --- */
+function adminDash(){
+  const periods=[...new Set(db.readings.map(r=>r.period))].sort();
+  const latest=periods[periods.length-1];
+  const billed=db.readings.filter(r=>r.period===latest);
+  const revenue=billed.reduce((s,r)=>s+calcInvoice(r).total,0);
+  const pendingCount=db.owners.filter(o=>o.status==='pending').length;
+  const recent=[...db.readings].sort((a,b)=>b.period.localeCompare(a.period)).slice(0,5);
+  const rrows=recent.length?recent.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
+    return `<tr><td><strong>${esc(h.houseNumber)}</strong></td><td class="muted">${periodLabel(r.period)}</td>
+      <td>${c.wU} ${t('water').toLowerCase()}</td><td>${c.gU} ${t('gas').toLowerCase()}</td>
+      <td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('')
+    :`<tr><td colspan="5" class="muted">${t('noReadings')}</td></tr>`;
+  return `<div class="stat-grid">
+    <div class="stat"><div class="ico brand">${svg('house')}</div><div class="l">${t('statTotalHouses')}</div><div class="v">${db.houses.length}</div></div>
+    <div class="stat"><div class="ico water">${svg('invoice')}</div><div class="l">${t('statThisMonth')}</div><div class="v">${billed.length}</div></div>
+    <div class="stat"><div class="ico ${pendingCount?'warn':'ok'}">${svg('approve')}</div><div class="l">${t('statPending')}</div><div class="v">${pendingCount}</div></div>
+    <div class="stat"><div class="ico ok">${svg('rates')}</div><div class="l">${t('statRevenue')}${latest?' · '+periodLabel(latest):''}</div><div class="v" style="font-size:18px">${money(revenue)}</div></div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 style="margin:0">${t('quickReadings')}</h3>
+      <button class="btn soft sm" data-goto="readings">${svg('plus','icn sm')} ${t('saveReading')}</button>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>${t('houseNo')}</th><th>${t('period')}</th><th>${t('water')}</th><th>${t('gas')}</th><th class="right">${t('total')}</th></tr></thead><tbody>${rrows}</tbody></table></div>
+  </div>`;
+}
+function bindDash(){ document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{adminTab=b.dataset.goto;render();}); }
+/* --- Houses --- */
+function adminHouses(){
+  const e = editHouseId ? db.houses.find(h=>h.id===editHouseId) : null;
+  const rows = db.houses.length ? db.houses.map(h=>`<tr>
+      <td>${h.cluster?'<span class="pill" style="background:var(--brand-soft);color:var(--brand-d)">'+esc(h.cluster)+'</span>':'<span class="muted">—</span>'}</td>
+      <td><strong>${esc(h.houseNumber)}</strong></td>
+      <td>${esc(h.ownerName)||'<span class="muted">—</span>'}</td>
+      <td class="right nowrap"><button class="btn ghost sm" data-eh="${h.id}">${t('edit')}</button>
+      <button class="btn danger sm" data-dh="${h.id}">${t('del')}</button></td></tr>`).join('')
+    : `<tr><td colspan="4"><div class="empty"><div class="ei">${svg('house')}</div>${t('noHouses')}</div></td></tr>`;
+  return `<div class="card">
+    <h2>${e?t('edit'):t('addHouse')}</h2><p class="sub">${t('housesSub')}</p>
+    <div class="rowflex">
+      <div class="field" style="margin:0"><label>${t('cluster')} <span class="opt">(${t('optional')})</span></label><input id="hc" value="${e?esc(e.cluster):''}" placeholder="Zone A"></div>
+      <div class="field" style="margin:0"><label>${t('houseNo')}</label><input id="hn" value="${e?esc(e.houseNumber):''}" placeholder="A-101"></div>
+      <div class="field" style="margin:0"><label>${t('owner')} <span class="opt">(${t('optional')})</span></label><input id="ho" value="${e?esc(e.ownerName):''}"></div>
+    </div>
+    <p class="help">${t('clusterHelp')}</p>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn" id="saveHouse">${svg('plus','icn sm')} ${t('save')}</button>
+      ${e?`<button class="btn ghost" id="cancelHouse">${t('cancel')}</button>`:''}
+    </div><div id="hmsg"></div>
+  </div>
+  <div class="card">
+    <h3>${t('housesTitle')} <span class="muted">· ${db.houses.length}</span></h3>
+    <div class="tbl-wrap"><table><thead><tr><th>${t('cluster')}</th><th>${t('houseNo')}</th><th>${t('owner')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+function bindHouses(){
+  const $=id=>document.getElementById(id);
+  $('saveHouse').onclick=()=>{
+    const no=$('hn').value.trim(); if(!no){ $('hmsg').innerHTML=`<div class="notice err">${t('houseNo')}</div>`; return; }
+    if(editHouseId){ const h=db.houses.find(x=>x.id===editHouseId); h.cluster=$('hc').value.trim(); h.houseNumber=no; h.ownerName=$('ho').value.trim(); editHouseId=null; }
+    else db.houses.push({id:uid('h'),cluster:$('hc').value.trim(),houseNumber:no,ownerName:$('ho').value.trim()});
+    save(db); renderAdminBody();
+  };
+  if($('cancelHouse')) $('cancelHouse').onclick=()=>{editHouseId=null;renderAdminBody();};
+  document.querySelectorAll('[data-eh]').forEach(b=>b.onclick=()=>{editHouseId=b.dataset.eh;renderAdminBody();window.scrollTo({top:0,behavior:'smooth'});});
+  document.querySelectorAll('[data-dh]').forEach(b=>b.onclick=()=>{ if(confirm(t('confirmDel'))){ db.houses=db.houses.filter(h=>h.id!==b.dataset.dh); db.readings=db.readings.filter(r=>r.houseId!==b.dataset.dh); save(db); renderAdminBody(); } });
+}
+/* --- Rates --- */
+function adminRates(){
+  const R=db.rates;
+  return `<div class="card">
+    <h2>${t('ratesTitle')}</h2><p class="sub">${t('ratesSub')}</p>
+    <div class="field" style="max-width:200px"><label>${t('currency')}</label><input id="cur" value="${esc(R.currency)}"></div>
+    <div class="grid2">
+      <div class="field"><label><span class="util-dot ico water" style="display:inline-grid;width:18px;height:18px;vertical-align:-4px;margin-right:6px">${svg('water','icn sm')}</span>${t('waterRate')}</label><input id="wr" type="number" step="0.01" value="${R.waterRate}"></div>
+      <div class="field"><label>${t('waterFixed')}</label><input id="wf" type="number" step="0.01" value="${R.waterFixed}"></div>
+      <div class="field"><label><span class="util-dot ico gas" style="display:inline-grid;width:18px;height:18px;vertical-align:-4px;margin-right:6px">${svg('gas','icn sm')}</span>${t('gasRate')}</label><input id="gr" type="number" step="0.01" value="${R.gasRate}"></div>
+      <div class="field"><label>${t('gasFixed')}</label><input id="gf" type="number" step="0.01" value="${R.gasFixed}"></div>
+    </div>
+    <button class="btn" id="saveRates" style="margin-top:6px">${t('saveRates')}</button><div id="rmsg2"></div>
+  </div>
+  <div class="card">
+    <h2>${t('editFormula')}</h2><p class="sub">${t('editFormulaSub')}</p>
+    <div class="formula-vars">${t('formulaVars')}</div>
+    <div class="field" style="margin-top:14px">
+      <label><span class="util-dot ico water" style="display:inline-grid;width:18px;height:18px;vertical-align:-4px;margin-right:6px">${svg('water','icn sm')}</span>${t('formulaWater')}</label>
+      <div class="fx-row"><span class="fx-eq">=</span><input id="fw" class="fx-input" value="${esc((db.formula||{}).water||DEFAULT_FORMULA)}" spellcheck="false"></div>
+      <div class="fx-status" id="fwStatus"></div>
+    </div>
+    <div class="field">
+      <label><span class="util-dot ico gas" style="display:inline-grid;width:18px;height:18px;vertical-align:-4px;margin-right:6px">${svg('gas','icn sm')}</span>${t('formulaGas')}</label>
+      <div class="fx-row"><span class="fx-eq">=</span><input id="fg" class="fx-input" value="${esc((db.formula||{}).gas||DEFAULT_FORMULA)}" spellcheck="false"></div>
+      <div class="fx-status" id="fgStatus"></div>
+    </div>
+    <p class="help" style="margin-top:8px">${t('formulaPreviewNote')}</p>
+    <div id="fxPreview" class="stat-grid" style="margin-top:8px"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn" id="saveFormula">${t('saveRates')}</button>
+      <button class="btn ghost" id="resetFormula">${svg('rates','icn sm')} ${t('resetDefault')}</button>
+    </div><div id="fmsg"></div>
+  </div>`;
+}
+function bindRates(){
+  const $=id=>document.getElementById(id);
+  const updRates=()=>{ db.rates={currency:$('cur').value.trim()||'THB',waterRate:+$('wr').value||0,waterFixed:+$('wf').value||0,gasRate:+$('gr').value||0,gasFixed:+$('gf').value||0}; };
+  ['cur','wr','wf','gr','gf'].forEach(id=>$(id).addEventListener('input',()=>{updRates();fxPreview();}));
+  $('saveRates').onclick=()=>{ updRates(); save(db); $('rmsg2').innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`; };
+
+  function checkOne(inp,statusEl){
+    const ok=!!compileFormula(inp.value);
+    inp.classList.toggle('bad',!ok);
+    statusEl.innerHTML = inp.value.trim()===''? '' :
+      (ok?`<span class="fx-ok">${svg('shield','icn sm')} ${t('formulaValid')}</span>`
+         :`<span class="fx-err">${t('formulaInvalid')}</span>`);
+    return ok;
+  }
+  function fxPreview(){
+    const R=db.rates;
+    const wv=evalFormula($('fw').value,100,120,R.waterRate,R.waterFixed);
+    const gv=evalFormula($('fg').value,100,120,R.gasRate,R.gasFixed);
+    const cell=(cls,ic,label,val)=>`<div class="stat"><div class="ico ${cls}">${svg(ic)}</div><div class="l">${label} · ${t('result')}</div><div class="v" style="font-size:18px">${isNaN(val)?'—':money(val)}</div></div>`;
+    $('fxPreview').innerHTML=cell('water','water',t('formulaWater'),wv)+cell('gas','gas',t('formulaGas'),gv);
+  }
+  function validateAll(){ checkOne($('fw'),$('fwStatus')); checkOne($('fg'),$('fgStatus')); fxPreview(); }
+  $('fw').addEventListener('input',validateAll);
+  $('fg').addEventListener('input',validateAll);
+  validateAll();
+
+  $('saveFormula').onclick=()=>{
+    const okW=checkOne($('fw'),$('fwStatus')), okG=checkOne($('fg'),$('fgStatus'));
+    db.formula={ water: okW?$('fw').value.trim():DEFAULT_FORMULA, gas: okG?$('fg').value.trim():DEFAULT_FORMULA };
+    save(db);
+    $('fmsg').innerHTML = (okW&&okG)?`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`:`<div class="notice err">${t('formulaInvalid')}</div>`;
+  };
+  $('resetFormula').onclick=()=>{ $('fw').value=DEFAULT_FORMULA; $('fg').value=DEFAULT_FORMULA; db.formula={water:DEFAULT_FORMULA,gas:DEFAULT_FORMULA}; save(db); validateAll(); $('fmsg').innerHTML=`<div class="notice ok">${t('ratesSaved')}</div>`; };
+}
+/* --- Readings --- */
+let curMonth=(new Date()).toISOString().slice(0,7);
+function adminReadings(){
+  if(!db.houses.length) return `<div class="card"><h2>${t('readingsTitle')}</h2><div class="notice info">${t('noHouses')}</div></div>`;
+  const opts=db.houses.map(h=>`<option value="${h.id}">${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</option>`).join('');
+  const recent=[...db.readings].sort((a,b)=>b.period.localeCompare(a.period)).slice(0,12);
+  const rrows=recent.length?recent.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
+    return `<tr><td><strong>${esc(h.houseNumber)}</strong></td><td class="muted">${periodLabel(r.period)}</td>
+      <td>${r.waterPrev}→${r.waterCurr} <span class="pill" style="background:var(--water-soft);color:var(--water)">${c.wU}</span></td>
+      <td>${r.gasPrev}→${r.gasCurr} <span class="pill" style="background:var(--gas-soft);color:var(--gas)">${c.gU}</span></td>
+      <td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('')
+    :`<tr><td colspan="5" class="muted">${t('noReadings')}</td></tr>`;
+  return `<div class="card">
+    <h2>${t('readingsTitle')}</h2><p class="sub">${t('readingsSub')}</p>
+    <div class="rowflex">
+      <div class="field" style="margin:0"><label>${t('selHouse')}</label><select id="rHouse">${opts}</select></div>
+      <div class="field" style="margin:0"><label>${t('period')}</label><input id="rPeriod" type="month" value="${curMonth}"></div>
+    </div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="field"><label>${t('waterPrev')}</label><input id="wp" type="number" step="0.01"><div class="help" id="wpHint"></div></div>
+      <div class="field"><label>${t('waterCurr')}</label><input id="wc" type="number" step="0.01"></div>
+      <div class="field"><label>${t('gasPrev')}</label><input id="gp" type="number" step="0.01"><div class="help" id="gpHint"></div></div>
+      <div class="field"><label>${t('gasCurr')}</label><input id="gc" type="number" step="0.01"></div>
+    </div>
+    <div id="calcPreview"></div>
+    <button class="btn" id="saveReading" style="margin-top:14px">${t('saveReading')}</button><div id="rdmsg"></div>
+  </div>
+  <div class="card"><h3>${t('existingReadings')}</h3>
+    <div class="tbl-wrap"><table><thead><tr><th>${t('houseNo')}</th><th>${t('period')}</th><th>${t('water')}</th><th>${t('gas')}</th><th class="right">${t('total')}</th></tr></thead><tbody>${rrows}</tbody></table></div>
+  </div>`;
+}
+function bindReadings(){
+  const $=id=>document.getElementById(id);
+  function autofill(){
+    const hid=$('rHouse').value, per=$('rPeriod').value;
+    const prior=db.readings.filter(r=>r.houseId===hid&&r.period<per).sort((a,b)=>b.period.localeCompare(a.period))[0];
+    const exist=db.readings.find(r=>r.houseId===hid&&r.period===per);
+    const carry=(cur,prv)=> (cur===0||cur==null||cur==='')? (prv??'') : cur;  // last month's current, else last month's previous
+    if(exist){ $('wp').value=exist.waterPrev;$('wc').value=exist.waterCurr;$('gp').value=exist.gasPrev;$('gc').value=exist.gasCurr; }
+    else { $('wp').value=prior?carry(prior.waterCurr,prior.waterPrev):''; $('gp').value=prior?carry(prior.gasCurr,prior.gasPrev):''; $('wc').value='';$('gc').value=''; }
+    $('wpHint').textContent=prior?t('prevAuto'):''; $('gpHint').textContent=prior?t('prevAuto'):''; preview();
+  }
+  const curOrPrev=(curId,prv)=> ($(curId).value===''? prv : (+$(curId).value||0));  // blank current → equals previous (usage 0)
+  function preview(){
+    const wp=+$('wp').value||0, gp=+$('gp').value||0;
+    const r={waterPrev:wp,waterCurr:curOrPrev('wc',wp),gasPrev:gp,gasCurr:curOrPrev('gc',gp)};
+    if($('wc').value===''&&$('gc').value===''){ $('calcPreview').innerHTML=''; return; }
+    const c=calcInvoice(r);
+    $('calcPreview').innerHTML=`<div class="stat-grid" style="margin-top:6px">
+      <div class="stat"><div class="ico water">${svg('water')}</div><div class="l">${t('water')} · ${t('usage')} ${c.wU}</div><div class="v" style="font-size:18px">${money(c.wC)}</div></div>
+      <div class="stat"><div class="ico gas">${svg('gas')}</div><div class="l">${t('gas')} · ${t('usage')} ${c.gU}</div><div class="v" style="font-size:18px">${money(c.gC)}</div></div>
+      <div class="stat" style="background:var(--brand-soft);border-color:var(--brand-2)"><div class="ico brand">${svg('invoice')}</div><div class="l">${t('total')}</div><div class="v" style="font-size:20px;color:var(--brand-d)">${money(c.total)}</div></div></div>`;
+  }
+  $('rHouse').onchange=autofill; $('rPeriod').onchange=autofill;
+  ['wp','wc','gp','gc'].forEach(id=>$(id).addEventListener('input',preview));
+  autofill();
+  $('saveReading').onclick=()=>{
+    const hid=$('rHouse').value, per=$('rPeriod').value;
+    const wp=+$('wp').value||0,gp=+$('gp').value||0;
+    const wc=curOrPrev('wc',wp), gc=curOrPrev('gc',gp);  // blank current → equals previous
+    if(wc<wp||gc<gp){ $('rdmsg').innerHTML=`<div class="notice err">${t('currLessPrev')}</div>`; return; }
+    curMonth=per;
+    const ex=db.readings.find(r=>r.houseId===hid&&r.period===per);
+    if(ex){ Object.assign(ex,{waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc}); }
+    else db.readings.push({id:uid('r'),houseId:hid,period:per,waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc});
+    save(db); renderAdminBody();
+    setTimeout(()=>{const m=document.getElementById('rdmsg');if(m)m.innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('readingSaved')}</div>`;},0);
+  };
+}
+/* --- Admin invoices --- */
+let invFilter='all', invHouse='all';
+function adminInvoices(){
+  const periods=[...new Set(db.readings.map(r=>r.period))].sort().reverse();
+  const pOpts=`<option value="all">${t('allPeriods')}</option>`+periods.map(p=>`<option value="${p}">${periodLabel(p)}</option>`).join('');
+  const hOpts=`<option value="all">${t('allHouses')}</option>`+db.houses.slice().sort((a,b)=>a.houseNumber.localeCompare(b.houseNumber))
+    .map(h=>`<option value="${h.id}">${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</option>`).join('');
+  if(invHouse!=='all' && !db.houses.some(h=>h.id===invHouse)) invHouse='all';
+  const list=filteredInvoiceReadings();
+  let rows=list.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
+      return `<tr><td class="colcheck"><input type="checkbox" class="inv-sel" value="${r.id}"></td><td class="muted">${periodLabel(r.period)}</td><td><strong>${esc(h.houseNumber)}</strong></td><td>${esc(h.cluster)||'—'}</td>
+        <td class="right">${money(c.wC)}</td><td class="right">${money(c.gC)}</td><td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('');
+  if(!rows) rows=`<tr><td colspan="7"><div class="empty"><div class="ei">${svg('invoice')}</div>${t('noInvoices')}</div></td></tr>`;
+  return `<div class="card"><h2>${t('allInvoices')}</h2><p class="sub">${t('invoicesSub')}</p>
+    <div class="rowflex" style="align-items:flex-end">
+      <div class="field" style="margin:0;flex:1;min-width:180px"><label>${t('houseNo')}</label><select id="invHouse">${hOpts}</select></div>
+      <div class="field" style="margin:0;flex:1;min-width:150px;max-width:240px"><label>${t('filterPeriod')}</label><select id="invF">${pOpts}</select></div>
+      <div style="flex:none"><button class="btn" id="invDl">${svg('doc','icn sm')} ${t('downloadPdf')} <span id="invDlN"></span></button></div>
+    </div>
+    <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th class="colcheck"><input type="checkbox" id="invAll"></th><th>${t('period')}</th><th>${t('houseNo')}</th><th>${t('cluster')}</th><th class="right">${t('water')}</th><th class="right">${t('gas')}</th><th class="right">${t('total')}</th></tr></thead>
+    <tbody>${rows}</tbody></table></div></div>`;
+}
+function bindAdminInvoices(){
+  const p=document.getElementById('invF'); p.value=invFilter; p.onchange=()=>{invFilter=p.value;renderAdminBody();};
+  const h=document.getElementById('invHouse'); h.value=invHouse; h.onchange=()=>{invHouse=h.value;renderAdminBody();};
+  const all=document.getElementById('invAll');
+  const sels=()=>Array.from(document.querySelectorAll('.inv-sel'));
+  const updN=()=>{ const n=sels().filter(c=>c.checked).length; const el=document.getElementById('invDlN'); if(el)el.textContent=n?`(${n})`:''; if(all){const tot=sels().length; all.checked=tot>0&&n===tot; all.indeterminate=n>0&&n<tot;} };
+  if(all) all.onchange=()=>{ sels().forEach(c=>c.checked=all.checked); updN(); };
+  sels().forEach(c=>c.onchange=updN);
+  const dl=document.getElementById('invDl');
+  if(dl) dl.onclick=()=>{
+    let ids=sels().filter(c=>c.checked).map(c=>c.value);
+    if(!ids.length) ids=filteredInvoiceReadings().map(r=>r.id);
+    const map=Object.fromEntries(db.readings.map(r=>[r.id,r]));
+    downloadInvoicesPDF(ids.map(id=>map[id]));
+  };
+  updN();
+}
+/* --- Approvals --- */
+function adminApprovals(){
+  const order={pending:0,approved:1,rejected:2};
+  const list=[...db.owners].sort((a,b)=>order[a.status]-order[b.status]);
+  const rows=list.length?list.map(o=>{
+    const match=houseByNumber(o.houseNumber);
+    const act=o.status==='pending'?`<button class="btn ok sm" data-ap="${o.id}">${t('approve')}</button> <button class="btn danger sm" data-rj="${o.id}">${t('reject')}</button>`:'<span class="muted">—</span>';
+    return `<tr><td><div class="util-cell"><span class="user-av" style="width:30px;height:30px">${initials(o.username)}</span><strong>${esc(o.username)}</strong></div></td>
+      <td>${esc(o.houseNumber)} ${match?'':'<span class="pill warn">'+t('noMatchHouse')+'</span>'}</td>
+      <td><span class="pill ${o.status}">${t(o.status)}</span></td><td class="right nowrap">${act}</td></tr>`;}).join('')
+    :`<tr><td colspan="4"><div class="empty"><div class="ei">${svg('approve')}</div>${t('noPending')}</div></td></tr>`;
+  return `<div class="card"><h2>${t('approvalsTitle')}</h2><p class="sub">${t('approvalsSub')}</p>
+    <div class="tbl-wrap"><table><thead><tr><th>${t('username')}</th><th>${t('requestedHouse')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div id="apmsg"></div></div>`;
+}
+function bindApprovals(){
+  document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=async ()=>{
+    try{ await api('/api/admin/owners/'+b.dataset.ap+'/approve',{method:'POST'}); await refreshOwners(); renderAdminBody();
+      setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice ok">${t('approvedMsg')}</div>`;},0);
+    }catch(e){ alert(e.message); }
+  });
+  document.querySelectorAll('[data-rj]').forEach(b=>b.onclick=async ()=>{
+    try{ await api('/api/admin/owners/'+b.dataset.rj+'/reject',{method:'POST'}); await refreshOwners(); renderAdminBody();
+      setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice info">${t('rejectedMsg')}</div>`;},0);
+    }catch(e){ alert(e.message); }
+  });
+}
+
+/* --- Settings / Branding --- */
+function adminSettings(){
+  const s=db.settings||{};
+  const preview = s.logo
+    ? `<img src="${s.logo}" alt="logo" style="width:100%;height:100%;object-fit:contain">`
+    : `<div style="width:100%;height:100%;line-height:0">${DEFAULT_LOGO}</div>`;
+  return `<div class="card">
+    <h2>${t('settingsTitle')}</h2><p class="sub">${t('settingsSub')}</p>
+    <div class="rowflex">
+      <div class="field" style="margin:0;flex:1;min-width:200px"><label>${t('communityName')}</label><input id="cName" value="${esc(s.communityName||'')}" placeholder="MCTS"></div>
+      <div class="field" style="margin:0;flex:2;min-width:240px"><label>${t('address')}</label><input id="cAddr" value="${esc(s.address||'')}" placeholder="${t('addressPh')}"></div>
+    </div>
+    <label style="margin-top:14px">${t('logo')}</label>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <div class="logo-box">${preview}</div>
+      <div style="flex:1;min-width:200px">
+        <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none">
+        <button class="btn ghost" id="logoBtn">${svg('upload','icn sm')} ${s.logo?t('changeLogo'):t('uploadLogo')}</button>
+        ${s.logo?`<button class="btn danger" id="logoDel" style="margin-left:8px">${t('removeLogo')}</button>`:''}
+        <p class="help">${t('logoHelp')}</p>
+        ${!s.logo?`<p class="help" style="color:var(--brand)">${svg('shield','icn sm')} ${t('noLogo')} — ${t('appName')} default in use.</p>`:''}
+      </div>
+    </div>
+    <button class="btn" id="saveSettings" style="margin-top:18px">${t('save')}</button><div id="setmsg"></div>
+  </div>`;
+}
+function bindSettings(){
+  const $=id=>document.getElementById(id);
+  $('logoBtn').onclick=()=>$('logoFile').click();
+  $('logoFile').onchange=e=>{
+    const f=e.target.files[0]; if(!f)return;
+    if(f.size>1.5*1024*1024){ $('setmsg').innerHTML=`<div class="notice err">${t('logoTooBig')}</div>`; return; }
+    const rd=new FileReader();
+    rd.onload=()=>{ db.settings.logo=rd.result; save(db); setFavicon(); renderAdminBody(); setTimeout(()=>{const m=$('setmsg');if(m)m.innerHTML=`<div class="notice ok">${t('brandingSaved')}</div>`;},0); };
+    rd.readAsDataURL(f);
+  };
+  if($('logoDel')) $('logoDel').onclick=()=>{ db.settings.logo=null; save(db); setFavicon(); renderAdminBody(); };
+  $('saveSettings').onclick=()=>{ db.settings.communityName=$('cName').value.trim()||'MCTS'; db.settings.address=$('cAddr').value.trim(); save(db); document.title=brandName()+' · Utility Billing';
+    const sb=document.querySelector('.side-brand span'); if(sb)sb.textContent=db.settings.communityName;
+    $('setmsg').innerHTML=`<div class="notice ok">${t('brandingSaved')}</div>`; };
+}
+
+/* ===================== OWNER ===================== */
+let ownerPeriod=null, ownerSearch='';
+function viewOwner(){
+  const h=houseByNumber(session.houseNumber);
+  const myReadings=h?db.readings.filter(r=>r.houseId===h.id):[];
+  const all=myReadings.slice().sort((a,b)=>b.period.localeCompare(a.period));
+  let body;
+  if(!all.length){
+    body=`<div class="card"><div class="empty"><div class="ei">${svg('invoice')}</div>${t('noYear')}</div></div>`;
+  } else {
+    if(!ownerPeriod||!all.find(r=>r.period===ownerPeriod)) ownerPeriod=all[0].period;
+    const rowsHtml=all.map(r=>{const c=calcInvoice(r); const lab=periodLabel(r.period);
+      return `<tr class="own-row ${r.period===ownerPeriod?'active':''}" data-p="${r.period}" data-s="${esc((lab+' '+r.period).toLowerCase())}">
+        <td class="colcheck"><input type="checkbox" class="own-sel" value="${r.period}" onclick="event.stopPropagation()"></td><td><strong>${lab}</strong></td><td>${c.wU}</td><td>${c.gU}</td><td class="right nowrap"><strong>${money(c.total)}</strong></td></tr>`;}).join('');
+    body=`<div class="card">
+      <h2>${t('myInvoices')}</h2><p class="sub">${t('myInvSub')}</p>
+      <div class="rowflex" style="align-items:flex-end;margin-bottom:14px">
+        <div class="field" style="margin:0;flex:1;min-width:200px;max-width:360px"><label>${t('searchInvoices')}</label>
+          <div class="search-wrap">${svg('search','icn sm')}<input id="ownSearch" type="search" placeholder="${t('searchPlaceholderP')}" value="${esc(ownerSearch)}" autocomplete="off"></div></div>
+        <div style="flex:none"><button class="btn ghost" id="ownDl">${svg('doc','icn sm')} ${t('downloadPdf')} <span id="ownDlN"></span></button></div>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th class="colcheck"><input type="checkbox" id="ownAll"></th><th>${t('period')}</th><th>${t('water')} ${t('usage')}</th><th>${t('gas')} ${t('usage')}</th><th class="right">${t('total')}</th></tr></thead>
+        <tbody id="ownRows">${rowsHtml}<tr id="ownNoRes" class="hidden"><td colspan="5"><div class="empty"><div class="ei">${svg('search')}</div>${t('noResults')}</div></td></tr></tbody></table></div>
+      <div id="invoiceArea" style="margin-top:18px"></div>
+    </div>`;
+  }
+  return `<div class="shell" style="grid-template-columns:1fr">
+    <div class="main">
+      <div class="mob-top" style="display:flex">
+        <div class="side-brand" style="padding:0"><div class="side-logo">${brandMark()}</div><span>${brandName()}</span></div>
+        <div style="display:flex;gap:8px;align-items:center">${langBar()}<button class="btn ghost sm" id="logoutBtnM">${svg('logout','icn sm')}</button></div>
+      </div>
+      <header class="topbar" style="display:flex">
+        <div style="display:flex;align-items:center;gap:11px"><div class="side-logo">${brandMark()}</div><div><div class="pg">${t('ownerPortal')}</div><div class="small muted">${t('yourHouse')}: ${esc(session.houseNumber)}${h&&h.cluster?' · '+esc(h.cluster):''}</div></div></div>
+        <div class="rt"><div class="user-chip" style="padding:4px 8px"><div class="user-av">${initials(session.username)}</div><div><div class="un">${esc(session.username)}</div><div class="ur">${t('ownerLogin')}</div></div></div>${langBar()}<button class="btn ghost sm" id="logoutBtnT">${svg('logout','icn sm')} ${t('logout')}</button></div>
+      </header>
+      <div class="content">${body}</div>
+    </div>
+  </div>`;
+}
+function bindOwner(){
+  bindLang();
+  ['logoutBtnM','logoutBtnT'].forEach(id=>{const e=document.getElementById(id);if(e)e.onclick=doLogout;});
+  const rows=document.getElementById('ownRows'); if(!rows)return;
+  document.querySelectorAll('.own-row').forEach(tr=>tr.onclick=()=>{
+    ownerPeriod=tr.dataset.p;
+    document.querySelectorAll('.own-row').forEach(x=>x.classList.toggle('active',x===tr));
+    drawInvoice();
+  });
+  const box=document.getElementById('ownSearch');
+  if(box){
+    const apply=()=>{
+      ownerSearch=box.value;
+      const q=box.value.trim().toLowerCase(); let shown=0;
+      document.querySelectorAll('.own-row').forEach(tr=>{ const m=!q||tr.dataset.s.includes(q); tr.classList.toggle('hidden',!m); if(m)shown++; });
+      const nr=document.getElementById('ownNoRes'); if(nr) nr.classList.toggle('hidden',shown>0);
+    };
+    box.oninput=apply; apply();
+    if(ownerSearch){ box.focus(); box.setSelectionRange(box.value.length,box.value.length); }
+  }
+  const h=houseByNumber(session.houseNumber);
+  const byP=Object.fromEntries((h?db.readings.filter(r=>r.houseId===h.id):[]).map(r=>[r.period,r]));
+  const oall=document.getElementById('ownAll');
+  const osels=()=>Array.from(document.querySelectorAll('.own-sel'));
+  const updON=()=>{ const n=osels().filter(c=>c.checked).length; const el=document.getElementById('ownDlN'); if(el)el.textContent=n?`(${n})`:''; if(oall){const tot=osels().length; oall.checked=tot>0&&n===tot; oall.indeterminate=n>0&&n<tot;} };
+  if(oall) oall.onchange=()=>{ osels().forEach(c=>c.checked=oall.checked); updON(); };
+  osels().forEach(c=>c.onchange=updON);
+  const odl=document.getElementById('ownDl');
+  if(odl) odl.onclick=()=>{
+    let ps=osels().filter(c=>c.checked).map(c=>c.value);
+    if(!ps.length) ps=Object.keys(byP).sort().reverse();
+    downloadInvoicesPDF(ps.map(p=>byP[p]));
+  };
+  updON();
+  drawInvoice();
+}
+function drawInvoice(){
+  const area=document.getElementById('invoiceArea'); if(!area)return;
+  const h=houseByNumber(session.houseNumber);
+  const r=db.readings.find(x=>x.houseId===h.id&&x.period===ownerPeriod);
+  if(!r){ area.innerHTML=`<div class="empty"><div class="ei">${svg('invoice')}</div>${t('noInvoiceP')}</div>`; return; }
+  const c=calcInvoice(r), R=db.rates;
+  area.innerHTML=`<div class="invoice">
+    <div class="inv-head">
+      <div><div class="lbl">${t('invoiceFor')} · ${esc(h.houseNumber)}</div><div class="big">${periodLabel(ownerPeriod)}</div></div>
+      <div style="text-align:right"><div class="lbl">${t('grandTotal')}</div><div class="tot">${money(c.total)}</div>
+        <button id="stmtDl" style="margin-top:10px;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.4);padding:7px 13px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px">${svg('doc','icn sm')} ${t('download')}</button>
+      </div>
+    </div>
+    <div class="inv-body">
+      <div class="tbl-wrap" style="border:none">
+      <table style="min-width:0"><thead><tr><th>${t('item')}</th><th class="right">${t('prev')}</th><th class="right">${t('curr')}</th><th class="right">${t('usage')}</th><th class="right">${t('rate')}</th><th class="right">${t('amount')}</th></tr></thead>
+      <tbody>
+        <tr><td><div class="util-cell"><span class="util-dot ico water">${svg('water','icn sm')}</span>${t('water')}</div></td><td class="right">${r.waterPrev}</td><td class="right">${r.waterCurr}</td><td class="right">${c.wU}</td><td class="right muted">×${R.waterRate}+${R.waterFixed}</td><td class="right"><strong>${money(c.wC)}</strong></td></tr>
+        <tr><td><div class="util-cell"><span class="util-dot ico gas">${svg('gas','icn sm')}</span>${t('gas')}</div></td><td class="right">${r.gasPrev}</td><td class="right">${r.gasCurr}</td><td class="right">${c.gU}</td><td class="right muted">×${R.gasRate}+${R.gasFixed}</td><td class="right"><strong>${money(c.gC)}</strong></td></tr>
+      </tbody>
+      <tfoot><tr><td colspan="5" class="right">${t('grandTotal')}</td><td class="right" style="color:var(--brand-d);font-size:16px">${money(c.total)}</td></tr></tfoot>
+      </table></div>
+    </div>
+    <div class="inv-foot-note">${t('thanks')}</div>
+  </div>`;
+  const b=document.getElementById('stmtDl'); if(b) b.onclick=()=>downloadInvoicesPDF([r]);
+}
+
+/* ===================== PDF EXPORT ===================== */
+function filteredInvoiceReadings(){
+  return db.readings
+    .filter(r=>(invFilter==='all'||r.period===invFilter) && (invHouse==='all'||r.houseId===invHouse))
+    .sort((a,b)=>b.period.localeCompare(a.period));
+}
+function invoiceNo(r, util){
+  const n = util==='gas' ? r.gasNo : r.waterNo;   // server-assigned running number
+  return n!=null ? String(n).padStart(3,'0') : '—';
+}
+const PRINT_CSS=`<style>
+@page{size:A5;margin:14mm}
+*{box-sizing:border-box}
+body{font-family:'Inter','Noto Sans Thai','Noto Sans SC',system-ui,sans-serif;color:#101828;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.slip{padding:6px 0 24px;max-width:680px;margin:0 auto}
+.sl-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--accent);padding-bottom:13px}
+.sl-brand{display:flex;gap:12px;align-items:center}
+.sl-logo{width:50px;height:50px;line-height:0;flex:none}.sl-logo img,.sl-logo svg{width:100%;height:100%;object-fit:contain}
+.sl-name{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.sl-addr{font-size:11px;color:#475467;margin-top:2px;max-width:34ch}
+.sl-title{font-size:11.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-top:5px}
+.sl-no{text-align:center;border:1.5px solid var(--accent);border-radius:10px;padding:6px 14px;flex:none}
+.sl-no span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#475467}
+.sl-no b{font-size:19px;color:var(--accent)}
+.sl-party{margin:16px 0}
+.sl-pair{display:flex;gap:34px;flex-wrap:wrap;margin-top:10px}
+.sl-line{display:flex;align-items:baseline;gap:8px;font-size:13px}
+.sl-line span{color:#98a2b3;font-size:11px;white-space:nowrap}
+.sl-line u{flex:1;min-width:110px;border-bottom:1px dotted #98a2b3;text-decoration:none;font-weight:600;padding:0 4px 2px;color:#101828}
+.sl-tbl{width:100%;border-collapse:collapse;font-size:13.5px;border:1px solid #e7ebf1;border-radius:10px;overflow:hidden;margin-top:4px}
+.sl-tbl td{padding:10px 14px;border-bottom:1px solid #eef1f5}
+.sl-tbl tr:last-child td{border-bottom:none}
+.sl-tbl td:first-child{font-weight:600;color:#344054}
+.sl-tbl .r{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;width:110px}
+.sl-tbl .u{width:60px;color:#98a2b3;font-size:11.5px}
+.sl-total{display:flex;justify-content:space-between;align-items:center;margin-top:13px;padding:12px 16px;background:var(--accent);color:#fff;border-radius:10px}
+.sl-total span{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;opacity:.92}
+.sl-total b{font-size:21px}
+.sl-foot{display:flex;justify-content:space-between;gap:28px;margin-top:30px}
+.sl-sign{flex:1;display:flex;align-items:baseline;gap:8px;font-size:12px}
+.sl-sign span{color:#475467;white-space:nowrap}
+.sl-sign u{flex:1;border-bottom:1px dotted #98a2b3;text-decoration:none;padding:0 4px 3px;font-weight:600}
+</style>`;
+function statementInner(r, util){
+  const h=houseById(r.houseId)||{houseNumber:'',cluster:'',ownerName:''};
+  const c=calcInvoice(r), R=db.rates, s=db.settings||{};
+  const U = util==='gas'
+    ? {prev:r.gasPrev,curr:r.gasCurr,usage:c.gU,charge:c.gC,title:t('billGas'),accent:'#ea6c10'}
+    : {prev:r.waterPrev,curr:r.waterCurr,usage:c.wU,charge:c.wC,title:t('billWater'),accent:'#0a8fc7'};
+  const logo = s.logo ? `<img src="${s.logo}" alt="">` : DEFAULT_LOGO;
+  const num = n => Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  return `<div class="slip" style="--accent:${U.accent}">
+    <div class="sl-head">
+      <div class="sl-brand"><div class="sl-logo">${logo}</div>
+        <div><div class="sl-name">${brandName()}</div>${s.address?`<div class="sl-addr">${esc(s.address)}</div>`:''}<div class="sl-title">${U.title}</div></div></div>
+      <div class="sl-no"><span>${t('invNo')}</span><b>${invoiceNo(r,util)}</b></div>
+    </div>
+    <div class="sl-party">
+      <div class="sl-line"><span>${t('nameLabel')}</span><u>${h.ownerName?esc(h.ownerName):''}</u></div>
+      <div class="sl-pair">
+        <div class="sl-line"><span>${t('houseNo')}</span><u>${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</u></div>
+        <div class="sl-line"><span>${t('period')}</span><u>${periodLabel(r.period)}</u></div>
+      </div>
+    </div>
+    <table class="sl-tbl">
+      <tr><td>${t('meterCurr')}</td><td class="r">${U.curr}</td><td class="u">${t('unitsWord')}</td></tr>
+      <tr><td>${t('meterPrev')}</td><td class="r">${U.prev}</td><td class="u">${t('unitsWord')}</td></tr>
+      <tr><td>${t('unitsUsed')}</td><td class="r">${U.usage}</td><td class="u">${t('unitsWord')}</td></tr>
+      <tr><td>${t('serviceCharge')}</td><td class="r">${num(U.charge)}</td><td class="u">${esc(R.currency)}</td></tr>
+    </table>
+    <div class="sl-total"><span>${t('amountDue')}</span><b>${money(U.charge)}</b></div>
+    <div class="sl-foot">
+      <div class="sl-sign"><span>${t('receivedBy')}</span><u></u></div>
+      <div class="sl-sign"><span>${t('dateLabel')}</span><u>${formatDate(new Date())}</u></div>
+    </div>
+  </div>`;
+}
+function pdfFileName(list){
+  const san=s=>String(s||'').replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'');
+  if(list.length===1){ const r=list[0]; const h=houseById(r.houseId)||{}; const [y,m]=r.period.split('-'); return `${san(h.houseNumber)||'house'}_${m}_${y}`; }
+  if(list.every(r=>r.houseId===list[0].houseId)){ const h=houseById(list[0].houseId)||{}; return `${san(h.houseNumber)||'house'}_invoices`; }
+  return `${san((db.settings&&db.settings.communityName)||'MCTS')}_invoices`;
+}
+function downloadInvoicesPDF(readings){
+  const list=(readings||[]).filter(Boolean);
+  if(!list.length) return;
+  const fn=pdfFileName(list);
+  const w=window.open('','_blank','width=840,height=1000');
+  if(!w){ alert(t('popupBlocked')); return; }
+  const fonts='<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">';
+  const slips=[];
+  list.forEach(r=>{ slips.push(statementInner(r,'water')); slips.push(statementInner(r,'gas')); });
+  const pages=slips.map((html,i)=>`<div${i<slips.length-1?' style="page-break-after:always"':''}>`+html+`</div>`).join('');
+  w.document.write('<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><title>'+fn+'</title>'+fonts+PRINT_CSS+'</head><body>'+pages+'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.focus();window.print();},500);};window.onafterprint=function(){window.close();};</scr'+'ipt></body></html>');
+  w.document.close();
+  try{ w.document.title=fn; }catch(e){}
+}
+
+/* ===================== Boot ===================== */
+(async function boot(){
+  await loadBranding();
+  if(session && session.token){
+    try{ if(session.role==='admin') await loadAdmin(); else await loadOwner(); }
+    catch(e){ setSession(null); }
+  }
+  render();
+})();
+</script>
+</body>
+</html>

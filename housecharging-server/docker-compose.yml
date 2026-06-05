@@ -1,0 +1,41 @@
+# Local development: Postgres + the app. Run:  docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mcts
+      POSTGRES_PASSWORD: mcts
+      POSTGRES_DB: mcts
+    # Not published to the host: the app reaches Postgres over the internal compose
+    # network. (Host port 5432 is already used by another service on this box.)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcts"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://mcts:mcts@db:5432/mcts
+      PGSSL: "false"
+      JWT_SECRET: dev-secret-change-me
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin123
+      SEED_DEMO: "true"
+      PORT: "3000"
+    # Bound to localhost only; nginx (host) reverse-proxies mcts.urbanwerkzsg.com here.
+    # Host port 3010 chosen because 3000 is taken by another service on this box.
+    ports:
+      - "127.0.0.1:3010:3000"
+    command: sh -c "node src/migrate.js && node src/server.js"
+
+volumes:
+  pgdata:

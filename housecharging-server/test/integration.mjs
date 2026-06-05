@@ -1,0 +1,108 @@
+// End-to-end integration test of the real Express routes against an in-memory Postgres.
+// Run: node test/integration.mjs   (pg-mem must be installed)
+process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
+process.env.JWT_SECRET = 'test-secret';
+
+import fs from 'node:fs';
+import { newDb } from 'pg-mem';
+import { setPool } from '../src/db.js';
+import { hashPassword } from '../src/auth.js';
+
+// Build an in-memory Postgres and a pg-compatible pool, then inject it.
+const mem = newDb();
+const adapter = mem.adapters.createPg();
+const pool = new adapter.Pool();
+setPool(pool);
+
+// Apply schema + seed an admin (mirrors migrate.js).
+mem.public.none(fs.readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'));
+await pool.query('INSERT INTO admins (username, password_hash) VALUES ($1,$2)',
+  ['admin', await hashPassword('admin123')]);
+
+const { createApp } = await import('../src/app.js');
+const app = createApp();
+const server = app.listen(0);
+const base = `http://localhost:${server.address().port}`;
+
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log('  ok  ' + m); } else { fail++; console.log('  FAIL ' + m); } };
+const J = async (path, { method = 'GET', token, body } = {}) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const res = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  let data = null; try { data = await res.json(); } catch {}
+  return { status: res.status, data };
+};
+
+try {
+  // 1. admin login
+  let r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
+  ok(r.status === 200 && r.data.token, 'admin login returns token');
+  const adminToken = r.data.token;
+
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'wrong' } });
+  ok(r.status === 401, 'wrong admin password rejected');
+
+  // 2. admin saves whole state (settings + house + reading)
+  r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+    settings: { communityName: 'Charoensap', address: 'Moo 7', currency: 'THB',
+      waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+      formulaWater: '(curr - prev) * rate + fixed', formulaGas: '(curr - prev) * rate + fixed' },
+    houses: [{ cluster: 'Zone A', houseNumber: 'A-101', ownerName: 'Somchai' }],
+    readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+  }});
+  ok(r.status === 200 && r.data.houses.length === 1, 'state saved: 1 house');
+  const reading = r.data.readings[0];
+  ok(Number(reading.waterCharge) === 336 && Number(reading.gasCharge) === 195 && Number(reading.total) === 531,
+    'server computed charges 336/195/531');
+  ok(reading.waterNo != null && reading.gasNo != null && reading.waterNo !== reading.gasNo,
+    'running invoice numbers assigned & distinct');
+
+  // 3. malicious formula is rejected server-side (falls back to default, still computes)
+  r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+    settings: { communityName: 'Charoensap', address: 'Moo 7', currency: 'THB',
+      waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+      formulaWater: 'process.exit(1)', formulaGas: '(curr - prev) * rate' },
+    houses: [{ cluster: 'Zone A', houseNumber: 'A-101', ownerName: 'Somchai' }],
+    readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+  }});
+  ok(r.status === 200, 'malicious formula did not crash server');
+  const s2 = (await J('/api/admin/bootstrap', { token: adminToken })).data.settings;
+  ok(s2.formula_water === '(curr - prev) * rate + fixed', 'bad formula replaced with default');
+
+  // 4. state sync must NOT be callable without admin token
+  r = await J('/api/admin/state', { method: 'PUT', body: { settings: {}, houses: [], readings: [] } });
+  ok(r.status === 401, 'unauthenticated state sync blocked');
+
+  // 5. owner registration -> pending -> cannot log in yet
+  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
+  ok(r.status === 201, 'owner registered (pending)');
+  r = await J('/api/auth/owner/login', { method: 'POST', body: { username: 'res1', password: 'pw123456' } });
+  ok(r.status === 403 && r.data.error === 'pending', 'pending owner cannot log in');
+
+  // 6. admin approves
+  const owners = (await J('/api/admin/owners', { token: adminToken })).data;
+  const ownerId = owners.find(o => o.username === 'res1').id;
+  r = await J(`/api/admin/owners/${ownerId}/approve`, { method: 'POST', token: adminToken });
+  ok(r.status === 200 && r.data.status === 'approved', 'admin approved owner');
+
+  // 7. owner logs in and sees only their house's invoices
+  r = await J('/api/auth/owner/login', { method: 'POST', body: { username: 'res1', password: 'pw123456' } });
+  ok(r.status === 200 && r.data.token, 'approved owner logs in');
+  const ownerToken = r.data.token;
+  r = await J('/api/owner/bootstrap', { token: ownerToken });
+  ok(r.status === 200 && r.data.house && r.data.house.houseNumber === 'A-101', 'owner sees their house');
+  // After step 3, gas formula became "(curr-prev)*rate" (no fixed): 336 + 7*25 = 511.
+  ok(r.data.invoices.length === 1 && Number(r.data.invoices[0].total) === 511,
+    'owner sees server-recomputed total 511 (water 336 + gas 175)');
+
+  // 8. duplicate username rejected
+  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'x', houseNumber: 'A-101' } });
+  ok(r.status === 409, 'duplicate owner username rejected');
+} catch (e) {
+  fail++; console.log('  EXCEPTION', e.stack || e.message);
+}
+
+console.log(`\n${pass} passed, ${fail} failed`);
+server.close();
+process.exit(fail ? 1 : 0);
