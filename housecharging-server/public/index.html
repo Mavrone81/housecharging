@@ -331,7 +331,7 @@ const I18N = {
     regSub:"An administrator will confirm you own this house before your first sign-in.",
     yourHouseNo:"Your house number", chooseUser:"Choose a username", choosePass:"Choose a password",
     submitReg:"Submit registration", regPending:"Registration submitted. An administrator must approve your account before you can view invoices.",
-    userTaken:"That username is already taken.", fillAll:"Please fill in all fields.",
+    userTaken:"That username is already taken.", fillAll:"Please fill in all fields.", pwTooShort:"Password must be at least 8 characters.",
     accPending:"Your account is awaiting administrator approval.",
     accRejected:"Your registration was not approved. Please contact the management office.",
     selectYear:"Year", selectPeriod:"Month", noInvoiceP:"No invoice issued for this period yet.",
@@ -404,7 +404,7 @@ const I18N = {
     regSub:"管理员将在您首次登录前确认您拥有该房屋。",
     yourHouseNo:"您的门牌号", chooseUser:"设置用户名", choosePass:"设置密码",
     submitReg:"提交注册", regPending:"注册已提交。需管理员审核通过后方可查看账单。",
-    userTaken:"该用户名已被使用。", fillAll:"请填写所有字段。",
+    userTaken:"该用户名已被使用。", fillAll:"请填写所有字段。", pwTooShort:"密码至少需要 8 个字符。",
     accPending:"您的账号正在等待管理员审核。",
     accRejected:"您的注册未通过审核，请联系物业办公室。",
     selectYear:"年份", selectPeriod:"月份", noInvoiceP:"该周期暂未出账单。",
@@ -477,7 +477,7 @@ const I18N = {
     regSub:"ผู้ดูแลจะยืนยันว่าคุณเป็นเจ้าของบ้านก่อนการเข้าสู่ระบบครั้งแรก",
     yourHouseNo:"บ้านเลขที่ของคุณ", chooseUser:"ตั้งชื่อผู้ใช้", choosePass:"ตั้งรหัสผ่าน",
     submitReg:"ส่งการลงทะเบียน", regPending:"ส่งการลงทะเบียนแล้ว ผู้ดูแลต้องอนุมัติก่อนจึงจะดูใบแจ้งหนี้ได้",
-    userTaken:"ชื่อผู้ใช้นี้ถูกใช้แล้ว", fillAll:"กรุณากรอกข้อมูลให้ครบ",
+    userTaken:"ชื่อผู้ใช้นี้ถูกใช้แล้ว", fillAll:"กรุณากรอกข้อมูลให้ครบ", pwTooShort:"รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
     accPending:"บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแล",
     accRejected:"การลงทะเบียนไม่ได้รับอนุมัติ กรุณาติดต่อสำนักงานนิติบุคคล",
     selectYear:"ปี", selectPeriod:"เดือน", noInvoiceP:"ยังไม่มีใบแจ้งหนี้สำหรับรอบนี้",
@@ -777,9 +777,10 @@ function bindLanding(){
     $('regGo').onclick=async ()=>{
       const h=$('rh').value.trim(), u=$('ru').value.trim(), p=$('rp').value;
       if(!h||!u||!p){ $('rmsg').innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
+      if(p.length<8){ $('rmsg').innerHTML=`<div class="notice err">${t('pwTooShort')}</div>`; return; }
       try{ await api('/api/auth/owner/register',{method:'POST',auth:false,body:{username:u,password:p,houseNumber:h}});
         $('rmsg').innerHTML=`<div class="notice ok">${t('regPending')}</div>`; $('rh').value=$('ru').value=$('rp').value='';
-      }catch(e){ $('rmsg').innerHTML=`<div class="notice err">${e.status===409?t('userTaken'):t('fillAll')}</div>`; }
+      }catch(e){ $('rmsg').innerHTML=`<div class="notice err">${e.status===409?t('userTaken'):(e.status===400?t('pwTooShort'):t('fillAll'))}</div>`; }
     };
   }
 }
@@ -1224,6 +1225,7 @@ function bindApprovals(){
   document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=async ()=>{
     const pw=prompt(t('newPwFor')+' '+b.dataset.pwuser+':'); if(pw===null) return;
     if(!pw.trim()){ alert(t('fillAll')); return; }
+    if(pw.length<8){ alert(t('pwTooShort')); return; }
     try{ await api('/api/admin/owners/'+b.dataset.pw+'/password',{method:'POST',body:{password:pw}});
       const m=document.getElementById('apmsg'); if(m)m.innerHTML=`<div class="notice ok">${t('pwReset')}</div>`;
     }catch(e){ alert(e.message); }
@@ -1234,6 +1236,7 @@ function bindApprovals(){
     const username=$('nu_user').value.trim(), password=$('nu_pass').value, houseNumber=$('nu_house').value.trim();
     const msg=$('numsg');
     if(!username||!password||!houseNumber){ msg.innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
+    if(password.length<8){ msg.innerHTML=`<div class="notice err">${t('pwTooShort')}</div>`; return; }
     try{ await api('/api/admin/owners',{method:'POST',body:{username,password,houseNumber}}); await refreshOwners(); renderAdminBody();
       setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice ok">${t('userCreated')}</div>`;},0);
     }catch(e){ msg.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }

@@ -1,8 +1,19 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
-const SECRET = process.env.JWT_SECRET || 'dev-insecure-secret-change-me';
+// Fail closed (VAPT L-7): refuse to start without a real JWT_SECRET rather than
+// silently signing tokens with a guessable dev default.
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  console.error('FATAL: JWT_SECRET is not set. Refusing to start with an insecure default.');
+  process.exit(1);
+}
 const EXPIRES = '12h';
+
+// Minimum password length enforced when accounts are created or reset (VAPT L-1).
+export const MIN_PASSWORD_LENGTH = 8;
+export const passwordTooShort = (pw) =>
+  typeof pw !== 'string' || pw.length < MIN_PASSWORD_LENGTH;
 
 export const hashPassword = (plain) => bcrypt.hash(plain, 10);
 export const verifyPassword = (plain, hash) => bcrypt.compare(plain, hash);

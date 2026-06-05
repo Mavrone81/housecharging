@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { signToken, hashPassword, verifyPassword } from '../auth.js';
+import { signToken, hashPassword, verifyPassword, passwordTooShort, MIN_PASSWORD_LENGTH } from '../auth.js';
 import { lockoutRemaining, registerFailure, clearAttempts } from '../loginGuard.js';
 
 const router = Router();
@@ -77,6 +77,8 @@ router.post('/owner/register', async (req, res, next) => {
     const { username, password, houseNumber } = req.body || {};
     if (!username || !password || !houseNumber)
       return res.status(400).json({ error: 'All fields are required' });
+    if (passwordTooShort(password))
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     const exists = await query('SELECT 1 FROM owners WHERE lower(username)=lower($1)', [username]);
     if (exists.rows.length) return res.status(409).json({ error: 'Username already taken' });
     const hash = await hashPassword(password);

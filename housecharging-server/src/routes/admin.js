@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
-import { requireAdmin, hashPassword } from '../auth.js';
+import { requireAdmin, hashPassword, passwordTooShort, MIN_PASSWORD_LENGTH } from '../auth.js';
 import { computeInvoice, publicReading } from '../invoice.js';
 import { isValidFormula, DEFAULT_FORMULA } from '../formula.js';
 import { listLocked, unlock, unlockAll } from '../loginGuard.js';
@@ -316,6 +316,8 @@ router.post('/owners', async (req, res, next) => {
     const { username, password, houseNumber } = req.body || {};
     if (!username || !password || !houseNumber)
       return res.status(400).json({ error: 'Username, password and house number are required' });
+    if (passwordTooShort(password))
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     const status = req.body.status === 'pending' ? 'pending' : 'approved';
     const exists = await query('SELECT 1 FROM owners WHERE lower(username)=lower($1)', [username]);
     if (exists.rows.length) return res.status(409).json({ error: 'Username already taken' });
@@ -333,6 +335,8 @@ router.post('/owners/:id/password', async (req, res, next) => {
   try {
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: 'A new password is required' });
+    if (passwordTooShort(password))
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     const hash = await hashPassword(password);
     const { rows } = await query(
       'UPDATE owners SET password_hash=$1 WHERE id=$2 RETURNING id, username, house_number, status',

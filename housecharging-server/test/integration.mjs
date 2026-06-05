@@ -110,8 +110,18 @@ try {
     'owner sees server-recomputed total 511 (water 336 + gas 175)');
 
   // 8. duplicate username rejected
-  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'x', houseNumber: 'A-101' } });
+  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
   ok(r.status === 409, 'duplicate owner username rejected');
+
+  // 8b. password policy (L-1): too-short passwords rejected on register/create/reset
+  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'shorty', password: 'short', houseNumber: 'A-101' } });
+  ok(r.status === 400, 'register rejects password < 8 chars');
+  r = await J('/api/admin/owners', { method: 'POST', token: adminToken, body: { username: 'shorty', password: 'short', houseNumber: 'A-101' } });
+  ok(r.status === 400, 'admin create-owner rejects short password');
+  r = await J(`/api/admin/owners/${ownerId}/password`, { method: 'POST', token: adminToken, body: { password: 'short' } });
+  ok(r.status === 400, 'admin password-reset rejects short password');
+  r = await J(`/api/admin/owners/${ownerId}/password`, { method: 'POST', token: adminToken, body: { password: 'longenough1' } });
+  ok(r.status === 200, 'admin password-reset accepts an 8+ char password');
 
   // 9. brute-force lockout (H-1): admin-configurable threshold, default-style behaviour
   await resetGuard();
@@ -163,6 +173,16 @@ try {
   ok(r.status === 401, 'unlock requires admin token');
   r = await J('/api/admin/security/unlock', { method: 'POST', token: adminToken, body: {} });
   ok(r.status === 400, 'unlock needs key or all');
+
+  // 11. fail-closed JWT secret (L-7): importing auth.js without JWT_SECRET aborts.
+  {
+    const { spawnSync } = await import('node:child_process');
+    const env = { ...process.env }; delete env.JWT_SECRET;
+    const proc = spawnSync(process.execPath,
+      ['--input-type=module', '-e', "await import('./src/auth.js')"],
+      { cwd: new URL('..', import.meta.url).pathname, env, encoding: 'utf8' });
+    ok(proc.status === 1 && /JWT_SECRET/.test(proc.stderr), 'auth.js refuses to start without JWT_SECRET');
+  }
 } catch (e) {
   fail++; console.log('  EXCEPTION', e.stack || e.message);
 }
