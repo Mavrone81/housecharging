@@ -1383,15 +1383,28 @@ function downloadInvoicesPDF(readings){
   const list=(readings||[]).filter(Boolean);
   if(!list.length) return;
   const fn=pdfFileName(list);
-  const w=window.open('','_blank','width=840,height=1000');
-  if(!w){ alert(t('popupBlocked')); return; }
   const fonts='<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Noto+Sans+Thai:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">';
   const slips=[];
   list.forEach(r=>{ slips.push(statementInner(r,'water')); slips.push(statementInner(r,'gas')); });
   const pages=slips.map((html,i)=>`<div${i<slips.length-1?' style="page-break-after:always"':''}>`+html+`</div>`).join('');
-  w.document.write('<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><title>'+fn+'</title>'+fonts+PRINT_CSS+'</head><body>'+pages+'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.focus();window.print();},500);};window.onafterprint=function(){window.close();};</scr'+'ipt></body></html>');
-  w.document.close();
-  try{ w.document.title=fn; }catch(e){}
+  const doc='<!doctype html><html lang="'+lang+'"><head><meta charset="utf-8"><title>'+fn+'</title>'+fonts+PRINT_CSS+'</head><body>'+pages+'</body></html>';
+  // Print through a hidden iframe — no extra browser tab/window, no about:blank, no popup blocker.
+  const ifr=document.createElement('iframe');
+  ifr.setAttribute('aria-hidden','true');
+  ifr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  let done=false;
+  const cleanup=()=>{ if(done)return; done=true; setTimeout(()=>{ try{ifr.remove();}catch(e){} },200); };
+  ifr.onload=()=>{
+    const w=ifr.contentWindow;
+    const go=()=>{ try{ w.focus(); w.print(); }catch(e){} };
+    if(w.onafterprint!==undefined) w.onafterprint=cleanup;
+    // Wait for embedded fonts (Thai/Chinese) to load so the slip renders correctly.
+    if(w.document.fonts&&w.document.fonts.ready){ w.document.fonts.ready.then(()=>setTimeout(go,150)); }
+    else setTimeout(go,500);
+    setTimeout(cleanup,60000); // safety net if onafterprint never fires
+  };
+  ifr.srcdoc=doc;
+  document.body.appendChild(ifr);
 }
 
 /* ===================== Boot ===================== */
