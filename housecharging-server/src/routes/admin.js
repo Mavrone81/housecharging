@@ -123,16 +123,18 @@ router.put('/security', async (req, res, next) => {
 });
 
 // Currently locked-out clients (devices that hit the failed-login threshold).
-router.get('/security/locked', (_req, res) => {
-  res.json(listLocked());
+router.get('/security/locked', async (_req, res, next) => {
+  try { res.json(await listLocked()); } catch (e) { next(e); }
 });
 
 // Release a lockout: { key } for one client, or { all: true } for everyone.
-router.post('/security/unlock', (req, res) => {
-  const b = req.body || {};
-  if (b.all) return res.json({ cleared: unlockAll() });
-  if (!b.key) return res.status(400).json({ error: 'key or all is required' });
-  res.json({ cleared: unlock(b.key) ? 1 : 0 });
+router.post('/security/unlock', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    if (b.all) return res.json({ cleared: await unlockAll() });
+    if (!b.key) return res.status(400).json({ error: 'key or all is required' });
+    res.json({ cleared: await unlock(b.key) ? 1 : 0 });
+  } catch (e) { next(e); }
 });
 
 // --- Branding ---

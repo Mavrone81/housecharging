@@ -98,6 +98,15 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS login_lockout_minutes INTEGER NOT 
 -- Seed the singleton settings row so the app's UPDATE ... WHERE id=1 always has a target.
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
+-- Failed-login tracking for the brute-force lockout (H-1). Persisted (rather than
+-- in-memory) so lockouts survive a process restart/redeploy. id is "<scope>:<ip>".
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id           TEXT PRIMARY KEY,
+  fails        INTEGER NOT NULL DEFAULT 0,
+  locked_until TIMESTAMPTZ,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Stable running invoice numbers, assigned once per (reading, utility).
 CREATE SEQUENCE IF NOT EXISTS invoice_number_seq START 1001;
 

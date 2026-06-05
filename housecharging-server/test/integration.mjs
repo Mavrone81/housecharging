@@ -102,7 +102,7 @@ try {
   ok(r.status === 409, 'duplicate owner username rejected');
 
   // 9. brute-force lockout (H-1): admin-configurable threshold, default-style behaviour
-  resetGuard();
+  await resetGuard();
   r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 3, lockoutMinutes: 15 } });
   ok(r.status === 200 && r.data.max_login_attempts === 3 && r.data.login_lockout_minutes === 15,
     'admin sets lockout threshold to 3 / 15 min');
@@ -120,7 +120,7 @@ try {
   ok(r.status === 429, 'lockout: correct password also blocked while locked');
 
   // Clearing on success: a fresh client (reset) with one miss then a hit logs in fine.
-  resetGuard();
+  await resetGuard();
   r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
   ok(r.status === 401, 'reset: one miss -> 401');
   r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
@@ -132,7 +132,7 @@ try {
     'security values clamped (attempts>=1, minutes<=1440)');
 
   // 10. admin can see and release lockouts
-  resetGuard();
+  await resetGuard();
   await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 2, lockoutMinutes: 15 } });
   await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
   await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } }); // -> locked

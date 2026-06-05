@@ -1,12 +1,12 @@
-// In-memory brute-force guard for the login endpoints.
+// Brute-force guard for the login endpoints, backed by the `login_attempts`
+// table so lockouts survive a process restart/redeploy.
 //
-// The app runs as a single container (one process) so a Map is sufficient and
-// avoids a DB write on every login attempt. Keyed by "<scope>:<client-ip>" so
-// admin and owner logins are tracked separately. After `maxAttempts` consecutive
-// failures from a key it is locked for `lockoutMs`; the threshold is
-// admin-configurable (settings.max_login_attempts, default 5).
+// Tracked per "<scope>:<ip>" (admin and owner logins counted separately). After
+// `maxAttempts` consecutive failures from a key it is locked until `locked_until`;
+// the threshold is admin-configurable (settings.max_login_attempts, default 5).
+// All functions are async (they hit the DB).
 
-const attempts = new Map(); // key -> { fails, lockedUntil }
+import { query } from './db.js';
 
 // Trust the first hop of X-Forwarded-For (nginx sets it); fall back to the socket.
 export function clientIp(req) {
@@ -17,69 +17,77 @@ export function clientIp(req) {
 const keyFor = (scope, req) => `${scope}:${clientIp(req)}`;
 
 // Seconds remaining on an active lockout for this client, or 0 if not locked.
-export function lockoutRemaining(scope, req) {
+// Sweeps the record once the lockout has expired.
+export async function lockoutRemaining(scope, req) {
   const key = keyFor(scope, req);
-  const rec = attempts.get(key);
-  if (!rec || !rec.lockedUntil) return 0;
-  const ms = rec.lockedUntil - Date.now();
-  if (ms <= 0) { attempts.delete(key); return 0; }
+  const { rows } = await query('SELECT locked_until FROM login_attempts WHERE id=$1', [key]);
+  const lu = rows[0]?.locked_until;
+  if (!lu) return 0;
+  const ms = new Date(lu).getTime() - Date.now();
+  if (ms <= 0) { await query('DELETE FROM login_attempts WHERE id=$1', [key]); return 0; }
   return Math.ceil(ms / 1000);
 }
 
 // Record one failed attempt. Returns { remaining, lockedFor }: `remaining` is how
 // many tries are left before lockout, `lockedFor` is the lockout length in seconds
 // (0 until the threshold is hit). maxAttempts <= 0 disables the lockout entirely.
-export function registerFailure(scope, req, maxAttempts, lockoutMs) {
+export async function registerFailure(scope, req, maxAttempts, lockoutMs) {
   if (!maxAttempts || maxAttempts <= 0) return { remaining: Infinity, lockedFor: 0 };
   const key = keyFor(scope, req);
-  const rec = attempts.get(key) || { fails: 0, lockedUntil: 0 };
-  rec.fails += 1;
-  if (rec.fails >= maxAttempts) {
-    rec.lockedUntil = Date.now() + lockoutMs;
-    rec.fails = 0; // the lockout itself is the penalty; start fresh after it expires
-    attempts.set(key, rec);
+  const { rows } = await query('SELECT fails FROM login_attempts WHERE id=$1', [key]);
+  const fails = (rows[0]?.fails || 0) + 1;
+  if (fails >= maxAttempts) {
+    // Lock out and reset the counter; the lockout itself is the penalty.
+    const until = new Date(Date.now() + lockoutMs);
+    await query(
+      `INSERT INTO login_attempts (id, fails, locked_until, updated_at) VALUES ($1, 0, $2, now())
+       ON CONFLICT (id) DO UPDATE SET fails=0, locked_until=$2, updated_at=now()`,
+      [key, until]);
     return { remaining: 0, lockedFor: Math.ceil(lockoutMs / 1000) };
   }
-  attempts.set(key, rec);
-  return { remaining: maxAttempts - rec.fails, lockedFor: 0 };
+  await query(
+    `INSERT INTO login_attempts (id, fails, updated_at) VALUES ($1, $2, now())
+     ON CONFLICT (id) DO UPDATE SET fails=$2, updated_at=now()`,
+    [key, fails]);
+  return { remaining: maxAttempts - fails, lockedFor: 0 };
 }
 
 // Clear a client's record after a successful login.
-export function clearAttempts(scope, req) {
-  attempts.delete(keyFor(scope, req));
+export async function clearAttempts(scope, req) {
+  await query('DELETE FROM login_attempts WHERE id=$1', [keyFor(scope, req)]);
 }
 
 // Currently locked-out clients, for the admin to review/release. Each entry is
 // { key, scope, ip, retryAfter } where retryAfter is seconds left on the lock.
 // Expired locks are swept out as a side effect.
-export function listLocked() {
-  const now = Date.now();
-  const out = [];
-  for (const [key, rec] of attempts) {
-    if (!rec.lockedUntil) continue;
-    if (rec.lockedUntil <= now) { attempts.delete(key); continue; }
-    const sep = key.indexOf(':');
-    out.push({
-      key,
-      scope: key.slice(0, sep),
-      ip: key.slice(sep + 1),
-      retryAfter: Math.ceil((rec.lockedUntil - now) / 1000),
-    });
-  }
-  return out;
+export async function listLocked() {
+  const now = new Date();
+  await query('DELETE FROM login_attempts WHERE locked_until IS NOT NULL AND locked_until <= $1', [now]);
+  const { rows } = await query(
+    'SELECT id, locked_until FROM login_attempts WHERE locked_until IS NOT NULL AND locked_until > $1 ORDER BY locked_until',
+    [now]);
+  return rows.map((r) => {
+    const sep = r.id.indexOf(':');
+    return {
+      key: r.id,
+      scope: r.id.slice(0, sep),
+      ip: r.id.slice(sep + 1),
+      retryAfter: Math.ceil((new Date(r.locked_until).getTime() - Date.now()) / 1000),
+    };
+  });
 }
 
 // Admin: release one locked client by key. Returns true if a record was removed.
-export function unlock(key) {
-  return attempts.delete(key);
+export async function unlock(key) {
+  const { rowCount } = await query('DELETE FROM login_attempts WHERE id=$1', [key]);
+  return rowCount > 0;
 }
 
 // Admin: release every locked/tracked client. Returns the number cleared.
-export function unlockAll() {
-  const n = attempts.size;
-  attempts.clear();
-  return n;
+export async function unlockAll() {
+  const { rowCount } = await query('DELETE FROM login_attempts');
+  return rowCount;
 }
 
 // Test-only: wipe all tracked state.
-export function _reset() { attempts.clear(); }
+export async function _reset() { await query('DELETE FROM login_attempts'); }
