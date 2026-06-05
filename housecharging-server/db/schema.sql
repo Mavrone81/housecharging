@@ -26,8 +26,16 @@ CREATE TABLE IF NOT EXISTS houses (
   id           SERIAL PRIMARY KEY,
   cluster      TEXT NOT NULL DEFAULT '',
   house_number TEXT NOT NULL UNIQUE,
-  owner_name   TEXT NOT NULL DEFAULT ''
+  owner_name   TEXT NOT NULL DEFAULT '',
+  -- Optional per-house overrides for the community fees. NULL = use the community
+  -- default from settings; a value (incl. 0) overrides it for this house.
+  garbage_fee  NUMERIC,
+  service_fee  NUMERIC
 );
+
+-- Per-house fee overrides (ALTER for existing databases). Nullable on purpose.
+ALTER TABLE houses ADD COLUMN IF NOT EXISTS garbage_fee NUMERIC;
+ALTER TABLE houses ADD COLUMN IF NOT EXISTS service_fee NUMERIC;
 
 -- Per-period meter readings. One row per (house, period). Deleting a house drops
 -- its readings (cascade) — matches the README note about renaming a house.
@@ -62,6 +70,8 @@ CREATE TABLE IF NOT EXISTS settings (
   water_fixed    NUMERIC NOT NULL DEFAULT 0,
   gas_rate       NUMERIC NOT NULL DEFAULT 0,
   gas_fixed      NUMERIC NOT NULL DEFAULT 0,
+  garbage_fee    NUMERIC NOT NULL DEFAULT 0,
+  service_fee    NUMERIC NOT NULL DEFAULT 0,
   formula_water  TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
   formula_gas    TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
   promptpay_qr   TEXT,
@@ -72,6 +82,10 @@ CREATE TABLE IF NOT EXISTS settings (
 -- PromptPay payment QR image (data URL), uploaded by the admin and shown to owners.
 -- ALTER (not just the column above) so existing databases pick it up on re-migrate.
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS promptpay_qr TEXT;
+
+-- Community default garbage/service fees (per-house overrides live on houses).
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS garbage_fee NUMERIC NOT NULL DEFAULT 0;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS service_fee NUMERIC NOT NULL DEFAULT 0;
 
 -- Seed the singleton settings row so the app's UPDATE ... WHERE id=1 always has a target.
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;

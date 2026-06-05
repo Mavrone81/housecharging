@@ -12,6 +12,10 @@ async function getSettings() {
   return rows[0];
 }
 
+// Map house id -> per-house fee overrides, for computeInvoice.
+const feeMap = (houses) => Object.fromEntries(
+  houses.map(h => [h.id, { garbage: h.garbage_fee, service: h.service_fee }]));
+
 // Assign/fetch a stable running invoice number for (reading, utility).
 async function invoiceNumber(client, readingId, utility) {
   const found = await client.query(
@@ -32,10 +36,11 @@ router.get('/bootstrap', async (_req, res, next) => {
     const houses = (await query('SELECT * FROM houses ORDER BY house_number')).rows;
     const readings = (await query('SELECT * FROM readings ORDER BY period DESC, id DESC')).rows;
     const owners = (await query('SELECT id, username, house_number, status, created_at FROM owners ORDER BY created_at')).rows;
+    const fees = feeMap(houses);
     const withNums = await tx(async (client) => {
       const list = [];
       for (const r of readings) {
-        const inv = computeInvoice(r, s);
+        const inv = computeInvoice(r, s, fees[r.house_id]);
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
         list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
@@ -47,6 +52,9 @@ router.get('/bootstrap', async (_req, res, next) => {
 });
 
 // --- Houses ---
+// Per-house fee override: blank/null/undefined => null (inherit community default).
+const feeOverride = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+
 router.post('/houses', async (req, res, next) => {
   try {
     const { cluster = '', houseNumber, ownerName = '' } = req.body || {};
@@ -54,8 +62,8 @@ router.post('/houses', async (req, res, next) => {
     const dup = await query('SELECT 1 FROM houses WHERE lower(house_number)=lower($1)', [houseNumber]);
     if (dup.rows.length) return res.status(409).json({ error: 'House number already exists' });
     const { rows } = await query(
-      'INSERT INTO houses (cluster, house_number, owner_name) VALUES ($1,$2,$3) RETURNING *',
-      [cluster, houseNumber, ownerName]);
+      'INSERT INTO houses (cluster, house_number, owner_name, garbage_fee, service_fee) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [cluster, houseNumber, ownerName, feeOverride(req.body.garbageFee), feeOverride(req.body.serviceFee)]);
     res.status(201).json(rows[0]);
   } catch (e) { next(e); }
 });
@@ -65,8 +73,8 @@ router.put('/houses/:id', async (req, res, next) => {
     const { cluster = '', houseNumber, ownerName = '' } = req.body || {};
     if (!houseNumber) return res.status(400).json({ error: 'House number is required' });
     const { rows } = await query(
-      'UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3 WHERE id=$4 RETURNING *',
-      [cluster, houseNumber, ownerName, req.params.id]);
+      'UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3, garbage_fee=$4, service_fee=$5 WHERE id=$6 RETURNING *',
+      [cluster, houseNumber, ownerName, feeOverride(req.body.garbageFee), feeOverride(req.body.serviceFee), req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'House not found' });
     res.json(rows[0]);
   } catch (e) { next(e); }
@@ -88,9 +96,9 @@ router.put('/settings', async (req, res, next) => {
     const fg = typeof b.formulaGas === 'string' && isValidFormula(b.formulaGas) ? b.formulaGas : DEFAULT_FORMULA;
     const { rows } = await query(
       `UPDATE settings SET currency=$1, water_rate=$2, water_fixed=$3, gas_rate=$4, gas_fixed=$5,
-         formula_water=$6, formula_gas=$7, updated_at=now() WHERE id=1 RETURNING *`,
+         formula_water=$6, formula_gas=$7, garbage_fee=$8, service_fee=$9, updated_at=now() WHERE id=1 RETURNING *`,
       [b.currency || 'THB', num(b.waterRate, 0), num(b.waterFixed, 0),
-       num(b.gasRate, 0), num(b.gasFixed, 0), fw, fg]);
+       num(b.gasRate, 0), num(b.gasFixed, 0), fw, fg, num(b.garbageFee, 0), num(b.serviceFee, 0)]);
     res.json({ settings: rows[0], formulaWaterValid: fw === b.formulaWater, formulaGasValid: fg === b.formulaGas });
   } catch (e) { next(e); }
 });
@@ -128,7 +136,8 @@ router.post('/readings', async (req, res, next) => {
        RETURNING *`,
       [b.houseId, b.period, wp, wc, gp, gc]);
     const s = await getSettings();
-    res.json({ ...rows[0], ...computeInvoice(rows[0], s) });
+    const hf = (await query('SELECT garbage_fee, service_fee FROM houses WHERE id=$1', [b.houseId])).rows[0] || {};
+    res.json({ ...rows[0], ...computeInvoice(rows[0], s, { garbage: hf.garbage_fee, service: hf.service_fee }) });
   } catch (e) { next(e); }
 });
 
@@ -169,7 +178,7 @@ router.get('/invoices', async (req, res, next) => {
     const where = [];
     if (req.query.house && req.query.house !== 'all') { params.push(req.query.house); where.push(`r.house_id=$${params.length}`); }
     if (req.query.period && req.query.period !== 'all') { params.push(req.query.period); where.push(`r.period=$${params.length}`); }
-    const sql = `SELECT r.*, h.house_number, h.cluster, h.owner_name
+    const sql = `SELECT r.*, h.house_number, h.cluster, h.owner_name, h.garbage_fee, h.service_fee
                  FROM readings r JOIN houses h ON h.id=r.house_id
                  ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
                  ORDER BY r.period DESC, h.house_number`;
@@ -177,7 +186,7 @@ router.get('/invoices', async (req, res, next) => {
     const out = await tx(async (client) => {
       const list = [];
       for (const r of rows) {
-        const inv = computeInvoice(r, s);
+        const inv = computeInvoice(r, s, { garbage: r.garbage_fee, service: r.service_fee });
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
         list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
@@ -201,21 +210,24 @@ router.put('/state', async (req, res, next) => {
       await client.query(
         `UPDATE settings SET community_name=$1, address=$2, logo=$3, currency=$4,
            water_rate=$5, water_fixed=$6, gas_rate=$7, gas_fixed=$8,
-           formula_water=$9, formula_gas=$10, promptpay_qr=$11, updated_at=now() WHERE id=1`,
+           formula_water=$9, formula_gas=$10, promptpay_qr=$11, garbage_fee=$12, service_fee=$13,
+           updated_at=now() WHERE id=1`,
         [s.communityName || 'MCTS', s.address || '', s.logo ?? null, s.currency || 'THB',
          num(s.waterRate, 0), num(s.waterFixed, 0), num(s.gasRate, 0), num(s.gasFixed, 0), fw, fg,
-         s.promptPayQr ?? null]);
+         s.promptPayQr ?? null, num(s.garbageFee, 0), num(s.serviceFee, 0)]);
 
       const houses = Array.isArray(b.houses) ? b.houses : [];
       const keep = [];
       const idByNo = {};
+      const ovr = v => (v === undefined || v === null || v === '' ? null : Number(v));
       for (const h of houses) {
         if (!h.houseNumber) continue;
         const r = await client.query(
-          `INSERT INTO houses (cluster, house_number, owner_name) VALUES ($1,$2,$3)
-           ON CONFLICT (house_number) DO UPDATE SET cluster=EXCLUDED.cluster, owner_name=EXCLUDED.owner_name
+          `INSERT INTO houses (cluster, house_number, owner_name, garbage_fee, service_fee) VALUES ($1,$2,$3,$4,$5)
+           ON CONFLICT (house_number) DO UPDATE SET cluster=EXCLUDED.cluster, owner_name=EXCLUDED.owner_name,
+             garbage_fee=EXCLUDED.garbage_fee, service_fee=EXCLUDED.service_fee
            RETURNING id, house_number`,
-          [h.cluster || '', h.houseNumber, h.ownerName || '']);
+          [h.cluster || '', h.houseNumber, h.ownerName || '', ovr(h.garbageFee), ovr(h.serviceFee)]);
         keep.push(r.rows[0].house_number);
         idByNo[String(r.rows[0].house_number).toLowerCase()] = r.rows[0].id;
       }
@@ -241,9 +253,10 @@ router.put('/state', async (req, res, next) => {
       const settings = (await client.query('SELECT * FROM settings WHERE id=1')).rows[0];
       const hrows = (await client.query('SELECT * FROM houses ORDER BY house_number')).rows;
       const rrows = (await client.query('SELECT * FROM readings ORDER BY period DESC, id DESC')).rows;
+      const fees = feeMap(hrows);
       const list = [];
       for (const r of rrows) {
-        const inv = computeInvoice(r, settings);
+        const inv = computeInvoice(r, settings, fees[r.house_id]);
         const waterNo = await invoiceNumber(client, r.id, 'water');
         const gasNo = await invoiceNumber(client, r.id, 'gas');
         list.push({ ...publicReading(r), ...inv, waterNo, gasNo });

@@ -29,10 +29,11 @@ router.get('/bootstrap', async (req, res, next) => {
     let invoices = [];
     if (house) {
       const rows = (await query('SELECT * FROM readings WHERE house_id=$1 ORDER BY period DESC', [house.id])).rows;
+      const hf = { garbage: house.garbage_fee, service: house.service_fee };
       invoices = await tx(async (client) => {
         const list = [];
         for (const r of rows) {
-          const inv = computeInvoice(r, s);
+          const inv = computeInvoice(r, s, hf);
           const waterNo = await invoiceNumber(client, r.id, 'water');
           const gasNo = await invoiceNumber(client, r.id, 'gas');
           list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
@@ -42,9 +43,12 @@ router.get('/bootstrap', async (req, res, next) => {
     }
     res.json({
       branding,
-      rates: { currency: s.currency, waterRate: Number(s.water_rate), waterFixed: Number(s.water_fixed), gasRate: Number(s.gas_rate), gasFixed: Number(s.gas_fixed) },
+      rates: { currency: s.currency, waterRate: Number(s.water_rate), waterFixed: Number(s.water_fixed),
+        gasRate: Number(s.gas_rate), gasFixed: Number(s.gas_fixed),
+        garbageFee: Number(s.garbage_fee), serviceFee: Number(s.service_fee) },
       formulaWater: s.formula_water, formulaGas: s.formula_gas,
-      house: house ? { houseNumber: house.house_number, cluster: house.cluster, ownerName: house.owner_name } : null,
+      house: house ? { houseNumber: house.house_number, cluster: house.cluster, ownerName: house.owner_name,
+        garbageFee: house.garbage_fee, serviceFee: house.service_fee } : null,
       invoices,
     });
   } catch (e) { next(e); }

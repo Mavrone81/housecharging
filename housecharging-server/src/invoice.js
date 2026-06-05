@@ -8,9 +8,15 @@ export function publicReading(r) {
   return { ...rest, paid: !!r.paid, hasProof: payment_proof != null };
 }
 
+// Resolve the effective fee for a house: the per-house override if set (incl. 0),
+// otherwise the community default. (`override` is null/undefined/'' when not set.)
+const effectiveFee = (override, communityDefault) =>
+  (override === null || override === undefined || override === '') ? Number(communityDefault) || 0 : Number(override) || 0;
+
 // Compute charges for a single reading row using the stored rates + formula.
 // `settings` is the row from the settings table (numbers may arrive as strings from pg).
-export function computeInvoice(reading, settings) {
+// `houseFees` = optional per-house overrides: { garbage, service } (null/'' = inherit).
+export function computeInvoice(reading, settings, houseFees = {}) {
   const n = v => Number(v) || 0;
   const r = {
     waterPrev: n(reading.water_prev), waterCurr: n(reading.water_curr),
@@ -29,8 +35,15 @@ export function computeInvoice(reading, settings) {
   if (Number.isNaN(waterCharge)) waterCharge = waterUsage * s.waterRate + s.waterFixed;
   if (Number.isNaN(gasCharge)) gasCharge = gasUsage * s.gasRate + s.gasFixed;
 
+  const garbageFee = round2Fee(effectiveFee(houseFees.garbage, settings.garbage_fee));
+  const serviceFee = round2Fee(effectiveFee(houseFees.service, settings.service_fee));
+
   const round2 = x => Math.round(x * 100) / 100;
   waterCharge = round2(waterCharge);
   gasCharge = round2(gasCharge);
-  return { waterUsage, gasUsage, waterCharge, gasCharge, total: round2(waterCharge + gasCharge) };
+  return {
+    waterUsage, gasUsage, waterCharge, gasCharge, garbageFee, serviceFee,
+    total: round2(waterCharge + gasCharge + garbageFee + serviceFee),
+  };
 }
+const round2Fee = x => Math.round((Number(x) || 0) * 100) / 100;

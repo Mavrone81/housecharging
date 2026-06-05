@@ -294,6 +294,7 @@ const I18N = {
     clusterHelp:"Group houses into clusters (e.g. Zone A), or leave blank to use house numbers only.",
     ratesTitle:"Rates & Calculation Formula", ratesSub:"Set unit rates and fixed fees. The formula applies to every house automatically.",
     currency:"Currency", waterRate:"Water rate (per unit)", waterFixed:"Water fixed fee", gasRate:"Gas rate (per unit)", gasFixed:"Gas fixed fee",
+    garbageFee:"Garbage fee", serviceFee:"Service fee", communityFeeHelp:"Community-wide flat fees added to every monthly bill. Can be overridden per house.", overrideOpt:"optional", defaultIs:"Default:", feeOverrideHelp:"Leave the fees blank to use the community default; enter a value to override for this house.", feesCol:"Fees (garbage · service)",
     formulaLabel:"Live calculation formula", saveRates:"Save rates", ratesSaved:"Rates and formula saved.",
     editFormula:"Charge Formula", editFormulaSub:"Define how each charge is calculated. These expressions apply to every house.",
     formulaWater:"Water charge", formulaGas:"Gas charge",
@@ -323,7 +324,7 @@ const I18N = {
     billWater:"Water Bill", billGas:"Gas Bill", nameLabel:"Name",
     meterCurr:"Current meter reading", meterPrev:"Previous meter reading", unitsUsed:"Units used", unitsWord:"units",
     serviceCharge:"Charge", amountDue:"Amount payable", receivedBy:"Received by", dateLabel:"Date",
-    statTotalHouses:"Houses", statThisMonth:"Billed this period", statPending:"Pending approvals", statRevenue:"Period revenue",
+    statTotalHouses:"Houses", statThisMonth:"Billed this period", statPending:"Pending approvals", statRevenue:"Period revenue", statYtd:"Revenue YTD",
     quickReadings:"Latest readings", viewAll:"View all",
     ownerPortal:"My Invoices", register:"Register", haveAccount:"Have an account? Sign in",
     needAccount:"New owner? Register here", regTitle:"Register as a Home Owner",
@@ -365,6 +366,7 @@ const I18N = {
     clusterHelp:"可将房屋按组团分组（如 A 区），或留空仅使用门牌号。",
     ratesTitle:"费率与计算公式", ratesSub:"设置单价与固定费用，公式会自动应用于所有房屋。",
     currency:"货币", waterRate:"水费单价（每单位）", waterFixed:"水费固定费用", gasRate:"燃气单价（每单位）", gasFixed:"燃气固定费用",
+    garbageFee:"垃圾费", serviceFee:"服务费", communityFeeHelp:"全社区统一的固定费用，加入每月账单。可按房屋单独调整。", overrideOpt:"选填", defaultIs:"默认：", feeOverrideHelp:"留空则使用社区默认值；填写则覆盖此房屋的费用。", feesCol:"费用（垃圾 · 服务）",
     formulaLabel:"实时计算公式", saveRates:"保存费率", ratesSaved:"费率与公式已保存。",
     editFormula:"计费公式", editFormulaSub:"定义每项费用的计算方式。以下表达式适用于所有房屋。",
     formulaWater:"水费", formulaGas:"燃气费",
@@ -394,7 +396,7 @@ const I18N = {
     billWater:"水费通知单", billGas:"燃气费通知单", nameLabel:"姓名",
     meterCurr:"本期抄表", meterPrev:"上期抄表", unitsUsed:"用量", unitsWord:"单位",
     serviceCharge:"费用", amountDue:"应付金额", receivedBy:"收款人", dateLabel:"日期",
-    statTotalHouses:"房屋数", statThisMonth:"本期已出账", statPending:"待审核", statRevenue:"本期收入",
+    statTotalHouses:"房屋数", statThisMonth:"本期已出账", statPending:"待审核", statRevenue:"本期收入", statYtd:"本年累计收入",
     quickReadings:"最新抄表", viewAll:"查看全部",
     ownerPortal:"我的账单", register:"注册", haveAccount:"已有账号？登录",
     needAccount:"新业主？点此注册", regTitle:"业主注册",
@@ -436,6 +438,7 @@ const I18N = {
     clusterHelp:"จัดกลุ่มบ้านเป็นโซน (เช่น โซน A) หรือเว้นว่างใช้เฉพาะบ้านเลขที่",
     ratesTitle:"อัตราและสูตรคำนวณ", ratesSub:"ตั้งอัตราต่อหน่วยและค่าคงที่ สูตรจะใช้กับทุกบ้านโดยอัตโนมัติ",
     currency:"สกุลเงิน", waterRate:"ค่าน้ำต่อหน่วย", waterFixed:"ค่าน้ำคงที่", gasRate:"ค่าแก๊สต่อหน่วย", gasFixed:"ค่าแก๊สคงที่",
+    garbageFee:"ค่าขยะ", serviceFee:"ค่าบริการส่วนกลาง", communityFeeHelp:"ค่าธรรมเนียมคงที่ทั้งชุมชน บวกเข้าทุกบิลรายเดือน ปรับเฉพาะบางบ้านได้", overrideOpt:"ไม่บังคับ", defaultIs:"ค่าเริ่มต้น:", feeOverrideHelp:"เว้นว่างเพื่อใช้ค่าเริ่มต้นของชุมชน หรือกรอกเพื่อกำหนดเฉพาะบ้านนี้", feesCol:"ค่าธรรมเนียม (ขยะ · บริการ)",
     formulaLabel:"สูตรคำนวณแบบเรียลไทม์", saveRates:"บันทึกอัตรา", ratesSaved:"บันทึกอัตราและสูตรแล้ว",
     editFormula:"สูตรคิดค่าบริการ", editFormulaSub:"กำหนดวิธีคำนวณค่าบริการแต่ละรายการ สูตรเหล่านี้ใช้กับทุกบ้าน",
     formulaWater:"ค่าน้ำ", formulaGas:"ค่าแก๊ส",
@@ -465,7 +468,7 @@ const I18N = {
     billWater:"ใบแจ้งค่าน้ำประปา", billGas:"ใบแจ้งค่าแก๊ส", nameLabel:"ชื่อ",
     meterCurr:"จดมาตรครั้งหลัง", meterPrev:"จดมาตรครั้งก่อน", unitsUsed:"จำนวนที่ใช้", unitsWord:"หน่วย",
     serviceCharge:"ค่าบริการ", amountDue:"เป็นจำนวนเงิน", receivedBy:"ผู้รับเงิน", dateLabel:"วัน/เดือน/ปี",
-    statTotalHouses:"จำนวนบ้าน", statThisMonth:"ออกบิลรอบนี้", statPending:"รออนุมัติ", statRevenue:"รายได้รอบนี้",
+    statTotalHouses:"จำนวนบ้าน", statThisMonth:"ออกบิลรอบนี้", statPending:"รออนุมัติ", statRevenue:"รายได้รอบนี้", statYtd:"รายได้สะสมปีนี้",
     quickReadings:"การจดมิเตอร์ล่าสุด", viewAll:"ดูทั้งหมด",
     ownerPortal:"ใบแจ้งหนี้ของฉัน", register:"ลงทะเบียน", haveAccount:"มีบัญชีแล้ว? เข้าสู่ระบบ",
     needAccount:"เจ้าของบ้านใหม่? ลงทะเบียนที่นี่", regTitle:"ลงทะเบียนเจ้าของบ้าน",
@@ -515,18 +518,20 @@ async function api(path, { method='GET', body, auth=true } = {}){
 // Client cache shaped like the original db (so all render code works unchanged).
 let db = {
   settings:{logo:null, communityName:'MCTS', address:'', promptPayQr:null},
-  rates:{currency:'THB', waterRate:18, waterFixed:30, gasRate:25, gasFixed:20},
+  rates:{currency:'THB', waterRate:18, waterFixed:30, gasRate:25, gasFixed:20, garbageFee:0, serviceFee:0},
   formula:{water:DEFAULT_FORMULA, gas:DEFAULT_FORMULA},
   houses:[], readings:[], owners:[],
 };
-const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'' });
+// Per-house fee override: null = inherit the community default.
+const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'',
+  garbageFee:(h.garbage_fee==null?null:Number(h.garbage_fee)), serviceFee:(h.service_fee==null?null:Number(h.service_fee)) });
 const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:r.period,
   waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
   waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof });
 const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
 function applySettings(s){
   db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'', promptPayQr:s.promptpay_qr||null };
-  db.rates={ currency:s.currency||'THB', waterRate:Number(s.water_rate), waterFixed:Number(s.water_fixed), gasRate:Number(s.gas_rate), gasFixed:Number(s.gas_fixed) };
+  db.rates={ currency:s.currency||'THB', waterRate:Number(s.water_rate), waterFixed:Number(s.water_fixed), gasRate:Number(s.gas_rate), gasFixed:Number(s.gas_fixed), garbageFee:Number(s.garbage_fee)||0, serviceFee:Number(s.service_fee)||0 };
   db.formula={ water:s.formula_water||DEFAULT_FORMULA, gas:s.formula_gas||DEFAULT_FORMULA };
 }
 async function loadBranding(){
@@ -547,7 +552,8 @@ async function loadOwner(){
   db.settings={ logo:d.branding.logo||null, communityName:d.branding.communityName||'MCTS', address:d.branding.address||'', promptPayQr:d.branding.promptPayQr||null };
   db.rates=d.rates;
   db.formula={ water:d.formulaWater||DEFAULT_FORMULA, gas:d.formulaGas||DEFAULT_FORMULA };
-  db.houses=d.house?[{ id:'1', cluster:d.house.cluster||'', houseNumber:d.house.houseNumber, ownerName:d.house.ownerName||'' }]:[];
+  db.houses=d.house?[{ id:'1', cluster:d.house.cluster||'', houseNumber:d.house.houseNumber, ownerName:d.house.ownerName||'',
+    garbageFee:(d.house.garbageFee==null?null:Number(d.house.garbageFee)), serviceFee:(d.house.serviceFee==null?null:Number(d.house.serviceFee)) }]:[];
   db.readings=(d.invoices||[]).map(r=>({ id:String(r.id), houseId:'1', period:r.period,
     waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
     waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof }));
@@ -560,8 +566,10 @@ function buildState(){
     settings:{ communityName:db.settings.communityName, address:db.settings.address, logo:db.settings.logo,
       promptPayQr:db.settings.promptPayQr,
       currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
-      gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas },
-    houses: db.houses.map(h=>({ cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName })),
+      gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas,
+      garbageFee:db.rates.garbageFee, serviceFee:db.rates.serviceFee },
+    houses: db.houses.map(h=>({ cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName,
+      garbageFee:(h.garbageFee==null||h.garbageFee===''?null:h.garbageFee), serviceFee:(h.serviceFee==null||h.serviceFee===''?null:h.serviceFee) })),
     readings: db.readings.map(r=>({ houseNumber:idToNo[r.houseId]||r.houseNumber, period:r.period,
       waterPrev:r.waterPrev, waterCurr:r.waterCurr, gasPrev:r.gasPrev, gasCurr:r.gasCurr })),
   };
@@ -617,6 +625,8 @@ function evalFormula(expr,prev,curr,rate,fixed){
   const fn=compileFormula(expr); if(!fn) return NaN;
   try{ const v=fn(prev,curr,curr-prev,rate,fixed,Math.min,Math.max,Math.round,Math.abs); return (typeof v==='number'&&isFinite(v))?v:NaN; }catch(e){ return NaN; }
 }
+// Effective per-house fee: the house override if set (incl. 0), else the community default.
+function effFee(houseVal, communityVal){ return (houseVal==null||houseVal==='')?(+communityVal||0):(+houseVal||0); }
 function calcInvoice(r){
   const R=db.rates, F=db.formula||{};
   const wU=r.waterCurr-r.waterPrev, gU=r.gasCurr-r.gasPrev;
@@ -624,7 +634,10 @@ function calcInvoice(r){
   let gC=evalFormula(F.gas,r.gasPrev,r.gasCurr,R.gasRate,R.gasFixed);
   if(isNaN(wC)) wC=wU*R.waterRate+R.waterFixed;
   if(isNaN(gC)) gC=gU*R.gasRate+R.gasFixed;
-  return {wU,gU,wC,gC,total:wC+gC};
+  const h=houseById(r.houseId)||{};
+  const r2=x=>Math.round((+x||0)*100)/100;
+  const garbage=r2(effFee(h.garbageFee,R.garbageFee)), service=r2(effFee(h.serviceFee,R.serviceFee));
+  return {wU,gU,wC,gC,garbage,service,total:wC+gC+garbage+service};
 }
 function esc(s){ return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function initials(s){ return String(s||'?').trim().slice(0,2).toUpperCase(); }
@@ -829,6 +842,9 @@ function adminDash(){
   const latest=periods[periods.length-1];
   const billed=db.readings.filter(r=>r.period===latest);
   const revenue=billed.reduce((s,r)=>s+calcInvoice(r).total,0);
+  // Year-to-date revenue: every bill from January of the current year onward.
+  const ytdYear=(latest||'').slice(0,4)||String(new Date().getFullYear());
+  const ytdRevenue=db.readings.filter(r=>r.period.slice(0,4)===ytdYear).reduce((s,r)=>s+calcInvoice(r).total,0);
   const pendingCount=db.owners.filter(o=>o.status==='pending').length;
   const recent=[...db.readings].sort((a,b)=>b.period.localeCompare(a.period)).slice(0,5);
   const rrows=recent.length?recent.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
@@ -841,6 +857,7 @@ function adminDash(){
     <div class="stat"><div class="ico water">${svg('invoice')}</div><div class="l">${t('statThisMonth')}</div><div class="v">${billed.length}</div></div>
     <div class="stat"><div class="ico ${pendingCount?'warn':'ok'}">${svg('approve')}</div><div class="l">${t('statPending')}</div><div class="v">${pendingCount}</div></div>
     <div class="stat"><div class="ico ok">${svg('rates')}</div><div class="l">${t('statRevenue')}${latest?' · '+periodLabel(latest):''}</div><div class="v" style="font-size:18px">${money(revenue)}</div></div>
+    <div class="stat" style="background:var(--brand-soft);border-color:var(--brand-2)"><div class="ico brand">${svg('rates')}</div><div class="l">${t('statYtd')} · ${displayYear(ytdYear)}</div><div class="v" style="font-size:18px;color:var(--brand-d)">${money(ytdRevenue)}</div></div>
   </div>
   <div class="card" style="margin-top:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -858,9 +875,10 @@ function adminHouses(){
       <td>${h.cluster?'<span class="pill" style="background:var(--brand-soft);color:var(--brand-d)">'+esc(h.cluster)+'</span>':'<span class="muted">—</span>'}</td>
       <td><strong>${esc(h.houseNumber)}</strong></td>
       <td>${esc(h.ownerName)||'<span class="muted">—</span>'}</td>
+      <td class="muted nowrap">${feeCellText(h)}</td>
       <td class="right nowrap"><button class="btn ghost sm" data-eh="${h.id}">${t('edit')}</button>
       <button class="btn danger sm" data-dh="${h.id}">${t('del')}</button></td></tr>`).join('')
-    : `<tr><td colspan="4"><div class="empty"><div class="ei">${svg('house')}</div>${t('noHouses')}</div></td></tr>`;
+    : `<tr><td colspan="5"><div class="empty"><div class="ei">${svg('house')}</div>${t('noHouses')}</div></td></tr>`;
   return `<div class="card">
     <h2>${e?t('edit'):t('addHouse')}</h2><p class="sub">${t('housesSub')}</p>
     <div class="rowflex">
@@ -868,7 +886,11 @@ function adminHouses(){
       <div class="field" style="margin:0"><label>${t('houseNo')}</label><input id="hn" value="${e?esc(e.houseNumber):''}" placeholder="A-101"></div>
       <div class="field" style="margin:0"><label>${t('owner')} <span class="opt">(${t('optional')})</span></label><input id="ho" value="${e?esc(e.ownerName):''}"></div>
     </div>
-    <p class="help">${t('clusterHelp')}</p>
+    <div class="rowflex" style="margin-top:12px">
+      <div class="field" style="margin:0"><label>${t('garbageFee')} <span class="opt">(${t('overrideOpt')})</span></label><input id="hgar" type="number" step="0.01" value="${e&&e.garbageFee!=null?e.garbageFee:''}" placeholder="${t('defaultIs')} ${Number(db.rates.garbageFee||0)}"></div>
+      <div class="field" style="margin:0"><label>${t('serviceFee')} <span class="opt">(${t('overrideOpt')})</span></label><input id="hser" type="number" step="0.01" value="${e&&e.serviceFee!=null?e.serviceFee:''}" placeholder="${t('defaultIs')} ${Number(db.rates.serviceFee||0)}"></div>
+    </div>
+    <p class="help">${t('clusterHelp')} ${t('feeOverrideHelp')}</p>
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="btn" id="saveHouse">${svg('plus','icn sm')} ${t('save')}</button>
       ${e?`<button class="btn ghost" id="cancelHouse">${t('cancel')}</button>`:''}
@@ -876,15 +898,24 @@ function adminHouses(){
   </div>
   <div class="card">
     <h3>${t('housesTitle')} <span class="muted">· ${db.houses.length}</span></h3>
-    <div class="tbl-wrap"><table><thead><tr><th>${t('cluster')}</th><th>${t('houseNo')}</th><th>${t('owner')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tbl-wrap"><table><thead><tr><th>${t('cluster')}</th><th>${t('houseNo')}</th><th>${t('owner')}</th><th>${t('feesCol')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
   </div>`;
+}
+// "garbage + service" effective fees for a house, marking which are per-house overrides.
+function feeCellText(h){
+  const g=h.garbageFee!=null, s=h.serviceFee!=null;
+  const gv=g?h.garbageFee:Number(db.rates.garbageFee||0), sv=s?h.serviceFee:Number(db.rates.serviceFee||0);
+  const tag=(v,ov)=>`${money(v).replace(db.rates.currency+' ','')}${ov?'*':''}`;
+  return `${t('garbageFee')}: ${tag(gv,g)} · ${t('serviceFee')}: ${tag(sv,s)}`;
 }
 function bindHouses(){
   const $=id=>document.getElementById(id);
+  const ov=v=>{ const x=$(v).value.trim(); return x===''?null:(+x||0); };
   $('saveHouse').onclick=()=>{
     const no=$('hn').value.trim(); if(!no){ $('hmsg').innerHTML=`<div class="notice err">${t('houseNo')}</div>`; return; }
-    if(editHouseId){ const h=db.houses.find(x=>x.id===editHouseId); h.cluster=$('hc').value.trim(); h.houseNumber=no; h.ownerName=$('ho').value.trim(); editHouseId=null; }
-    else db.houses.push({id:uid('h'),cluster:$('hc').value.trim(),houseNumber:no,ownerName:$('ho').value.trim()});
+    const gar=ov('hgar'), ser=ov('hser');
+    if(editHouseId){ const h=db.houses.find(x=>x.id===editHouseId); h.cluster=$('hc').value.trim(); h.houseNumber=no; h.ownerName=$('ho').value.trim(); h.garbageFee=gar; h.serviceFee=ser; editHouseId=null; }
+    else db.houses.push({id:uid('h'),cluster:$('hc').value.trim(),houseNumber:no,ownerName:$('ho').value.trim(),garbageFee:gar,serviceFee:ser});
     save(db); renderAdminBody();
   };
   if($('cancelHouse')) $('cancelHouse').onclick=()=>{editHouseId=null;renderAdminBody();};
@@ -902,7 +933,10 @@ function adminRates(){
       <div class="field"><label>${t('waterFixed')}</label><input id="wf" type="number" step="0.01" value="${R.waterFixed}"></div>
       <div class="field"><label><span class="util-dot ico gas" style="display:inline-grid;width:18px;height:18px;vertical-align:-4px;margin-right:6px">${svg('gas','icn sm')}</span>${t('gasRate')}</label><input id="gr" type="number" step="0.01" value="${R.gasRate}"></div>
       <div class="field"><label>${t('gasFixed')}</label><input id="gf" type="number" step="0.01" value="${R.gasFixed}"></div>
+      <div class="field"><label>${svg('rates','icn sm')} ${t('garbageFee')}</label><input id="garbF" type="number" step="0.01" value="${R.garbageFee||0}"></div>
+      <div class="field"><label>${svg('rates','icn sm')} ${t('serviceFee')}</label><input id="servF" type="number" step="0.01" value="${R.serviceFee||0}"></div>
     </div>
+    <p class="help">${t('communityFeeHelp')}</p>
     <button class="btn" id="saveRates" style="margin-top:6px">${t('saveRates')}</button><div id="rmsg2"></div>
   </div>
   <div class="card">
@@ -928,8 +962,8 @@ function adminRates(){
 }
 function bindRates(){
   const $=id=>document.getElementById(id);
-  const updRates=()=>{ db.rates={currency:$('cur').value.trim()||'THB',waterRate:+$('wr').value||0,waterFixed:+$('wf').value||0,gasRate:+$('gr').value||0,gasFixed:+$('gf').value||0}; };
-  ['cur','wr','wf','gr','gf'].forEach(id=>$(id).addEventListener('input',()=>{updRates();fxPreview();}));
+  const updRates=()=>{ db.rates={currency:$('cur').value.trim()||'THB',waterRate:+$('wr').value||0,waterFixed:+$('wf').value||0,gasRate:+$('gr').value||0,gasFixed:+$('gf').value||0,garbageFee:+$('garbF').value||0,serviceFee:+$('servF').value||0}; };
+  ['cur','wr','wf','gr','gf','garbF','servF'].forEach(id=>$(id).addEventListener('input',()=>{updRates();fxPreview();}));
   $('saveRates').onclick=()=>{ updRates(); save(db); $('rmsg2').innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`; };
 
   function checkOne(inp,statusEl){
@@ -1007,7 +1041,7 @@ function bindReadings(){
   const curOrPrev=(curId,prv)=> ($(curId).value===''? prv : (+$(curId).value||0));  // blank current → equals previous (usage 0)
   function preview(){
     const wp=+$('wp').value||0, gp=+$('gp').value||0;
-    const r={waterPrev:wp,waterCurr:curOrPrev('wc',wp),gasPrev:gp,gasCurr:curOrPrev('gc',gp)};
+    const r={houseId:$('rHouse').value,waterPrev:wp,waterCurr:curOrPrev('wc',wp),gasPrev:gp,gasCurr:curOrPrev('gc',gp)};
     if($('wc').value===''&&$('gc').value===''){ $('calcPreview').innerHTML=''; return; }
     const c=calcInvoice(r);
     $('calcPreview').innerHTML=`<div class="stat-grid" style="margin-top:6px">
@@ -1404,6 +1438,8 @@ function drawInvoice(){
       <tbody>
         <tr><td><div class="util-cell"><span class="util-dot ico water">${svg('water','icn sm')}</span>${t('water')}</div></td><td class="right">${r.waterPrev}</td><td class="right">${r.waterCurr}</td><td class="right">${c.wU}</td><td class="right muted">×${R.waterRate}+${R.waterFixed}</td><td class="right"><strong>${money(c.wC)}</strong></td></tr>
         <tr><td><div class="util-cell"><span class="util-dot ico gas">${svg('gas','icn sm')}</span>${t('gas')}</div></td><td class="right">${r.gasPrev}</td><td class="right">${r.gasCurr}</td><td class="right">${c.gU}</td><td class="right muted">×${R.gasRate}+${R.gasFixed}</td><td class="right"><strong>${money(c.gC)}</strong></td></tr>
+        ${c.garbage?`<tr><td colspan="5">${t('garbageFee')}</td><td class="right"><strong>${money(c.garbage)}</strong></td></tr>`:''}
+        ${c.service?`<tr><td colspan="5">${t('serviceFee')}</td><td class="right"><strong>${money(c.service)}</strong></td></tr>`:''}
       </tbody>
       <tfoot><tr><td colspan="5" class="right">${t('grandTotal')}</td><td class="right" style="color:var(--brand-d);font-size:16px">${money(c.total)}</td></tr></tfoot>
       </table></div>
@@ -1506,6 +1542,9 @@ function statementInner(r, util){
     : {prev:r.waterPrev,curr:r.waterCurr,usage:c.wU,charge:c.wC,title:t('billWater'),accent:'#0a8fc7'};
   const logo = s.logo ? `<img src="${s.logo}" alt="">` : DEFAULT_LOGO;
   const num = n => Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Flat monthly fees ride on the water slip so the water+gas slips sum to the month's payable.
+  const slipFees = util!=='gas';
+  const slipTotal = U.charge + (slipFees ? (c.garbage + c.service) : 0);
   return `<div class="slip" style="--accent:${U.accent}">
     <div class="sl-head">
       <div class="sl-brand"><div class="sl-logo">${logo}</div>
@@ -1524,8 +1563,10 @@ function statementInner(r, util){
       <tr><td>${t('meterPrev')}</td><td class="r">${U.prev}</td><td class="u">${t('unitsWord')}</td></tr>
       <tr><td>${t('unitsUsed')}</td><td class="r">${U.usage}</td><td class="u">${t('unitsWord')}</td></tr>
       <tr><td>${t('serviceCharge')}</td><td class="r">${num(U.charge)}</td><td class="u">${esc(R.currency)}</td></tr>
+      ${slipFees?(c.garbage?`<tr><td>${t('garbageFee')}</td><td class="r">${num(c.garbage)}</td><td class="u">${esc(R.currency)}</td></tr>`:''):''}
+      ${slipFees?(c.service?`<tr><td>${t('serviceFee')}</td><td class="r">${num(c.service)}</td><td class="u">${esc(R.currency)}</td></tr>`:''):''}
     </table>
-    <div class="sl-total"><span>${t('amountDue')}</span><b>${money(U.charge)}</b></div>
+    <div class="sl-total"><span>${t('amountDue')}</span><b>${money(slipTotal)}</b></div>
     <div class="sl-foot">
       <div class="sl-sign"><span>${t('receivedBy')}</span><u></u></div>
       <div class="sl-sign"><span>${t('dateLabel')}</span><u>${formatDate(new Date())}</u></div>
