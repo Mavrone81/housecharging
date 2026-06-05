@@ -130,6 +130,27 @@ try {
   r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 0, lockoutMinutes: 99999 } });
   ok(r.data.max_login_attempts === 1 && r.data.login_lockout_minutes === 1440,
     'security values clamped (attempts>=1, minutes<=1440)');
+
+  // 10. admin can see and release lockouts
+  resetGuard();
+  await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 2, lockoutMinutes: 15 } });
+  await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
+  await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } }); // -> locked
+  let locked = (await J('/api/admin/security/locked', { token: adminToken })).data;
+  ok(Array.isArray(locked) && locked.length === 1 && locked[0].scope === 'admin' && locked[0].retryAfter > 0,
+    'admin sees the locked device');
+  r = await J('/api/admin/security/unlock', { method: 'POST', token: adminToken, body: { key: locked[0].key } });
+  ok(r.status === 200 && r.data.cleared === 1, 'admin unlocks the device');
+  locked = (await J('/api/admin/security/locked', { token: adminToken })).data;
+  ok(locked.length === 0, 'lockout list is empty after unlock');
+  // The freed device can log in again immediately.
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
+  ok(r.status === 200 && r.data.token, 'unlocked device logs in right away');
+  // unlock requires auth + a target.
+  r = await J('/api/admin/security/unlock', { method: 'POST', body: { all: true } });
+  ok(r.status === 401, 'unlock requires admin token');
+  r = await J('/api/admin/security/unlock', { method: 'POST', token: adminToken, body: {} });
+  ok(r.status === 400, 'unlock needs key or all');
 } catch (e) {
   fail++; console.log('  EXCEPTION', e.stack || e.message);
 }

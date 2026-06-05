@@ -3,6 +3,7 @@ import { query, tx } from '../db.js';
 import { requireAdmin, hashPassword } from '../auth.js';
 import { computeInvoice, publicReading } from '../invoice.js';
 import { isValidFormula, DEFAULT_FORMULA } from '../formula.js';
+import { listLocked, unlock, unlockAll } from '../loginGuard.js';
 
 const router = Router();
 router.use(requireAdmin);
@@ -119,6 +120,19 @@ router.put('/security', async (req, res, next) => {
       [maxAttempts, lockoutMin]);
     res.json(rows[0]);
   } catch (e) { next(e); }
+});
+
+// Currently locked-out clients (devices that hit the failed-login threshold).
+router.get('/security/locked', (_req, res) => {
+  res.json(listLocked());
+});
+
+// Release a lockout: { key } for one client, or { all: true } for everyone.
+router.post('/security/unlock', (req, res) => {
+  const b = req.body || {};
+  if (b.all) return res.json({ cleared: unlockAll() });
+  if (!b.key) return res.status(400).json({ error: 'key or all is required' });
+  res.json({ cleared: unlock(b.key) ? 1 : 0 });
 });
 
 // --- Branding ---

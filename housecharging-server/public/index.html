@@ -344,7 +344,7 @@ const I18N = {
     communityName:"Community name", logo:"Logo", uploadLogo:"Upload logo", changeLogo:"Change logo", removeLogo:"Remove",
     logoHelp:"PNG, JPG or SVG. Square images look best. Max 1.5 MB.", logoTooBig:"Image is too large (max 1.5 MB).", brandingSaved:"Branding saved.", noLogo:"No logo uploaded yet",
     ppQr:"PromptPay payment QR", uploadQr:"Upload QR", changeQr:"Change QR", ppHelp:"Upload your community's PromptPay QR (PNG or JPG). Owners scan it to pay. Max 1.5 MB.", noPpQr:"No PromptPay QR uploaded yet", ppSaved:"Payment QR saved.",
-    loginSecTitle:"Login security", loginSecSub:"Protect accounts from password-guessing by locking out a device after repeated failed sign-ins.", maxLoginAttempts:"Failed attempts before lockout", lockoutMinutes:"Lockout duration (minutes)", loginSecHelp:"After this many wrong passwords in a row, that device must wait the lockout duration before trying again. Applies to admin and owner sign-in.", securitySaved:"Login security saved.", saveFailed:"Could not save — please try again.",
+    loginSecTitle:"Login security", loginSecSub:"Protect accounts from password-guessing by locking out a device after repeated failed sign-ins.", maxLoginAttempts:"Failed attempts before lockout", lockoutMinutes:"Lockout duration (minutes)", loginSecHelp:"After this many wrong passwords in a row, that device must wait the lockout duration before trying again. Applies to admin and owner sign-in.", securitySaved:"Login security saved.", saveFailed:"Could not save — please try again.", lockedNow:"Locked-out devices", noLocked:"No devices are currently locked out.", unlock:"Unlock", unlockAll:"Unlock all", unlocksIn:"unlocks in", minShort:"min",
     pay:"Pay", payTitle:"Pay with PromptPay", scanToPay:"Scan with your banking app to pay", noQrOwner:"Payment QR is not available yet. Please contact the management office.", close:"Close", payFor:"Payment for",
   },
   zh:{
@@ -417,7 +417,7 @@ const I18N = {
     communityName:"社区名称", logo:"标志", uploadLogo:"上传标志", changeLogo:"更换标志", removeLogo:"移除",
     logoHelp:"支持 PNG、JPG 或 SVG。方形图片效果最佳。最大 1.5 MB。", logoTooBig:"图片过大（最大 1.5 MB）。", brandingSaved:"品牌设置已保存。", noLogo:"尚未上传标志",
     ppQr:"PromptPay 收款二维码", uploadQr:"上传二维码", changeQr:"更换二维码", ppHelp:"上传社区的 PromptPay 收款二维码（PNG 或 JPG），业主扫码付款。最大 1.5 MB。", noPpQr:"尚未上传 PromptPay 二维码", ppSaved:"收款二维码已保存。",
-    loginSecTitle:"登录安全", loginSecSub:"多次登录失败后锁定该设备，防止他人猜测密码。", maxLoginAttempts:"锁定前允许的失败次数", lockoutMinutes:"锁定时长（分钟）", loginSecHelp:"连续输错密码达到此次数后，该设备需等待锁定时长后才能重试。适用于管理员和业主登录。", securitySaved:"登录安全设置已保存。", saveFailed:"保存失败，请重试。",
+    loginSecTitle:"登录安全", loginSecSub:"多次登录失败后锁定该设备，防止他人猜测密码。", maxLoginAttempts:"锁定前允许的失败次数", lockoutMinutes:"锁定时长（分钟）", loginSecHelp:"连续输错密码达到此次数后，该设备需等待锁定时长后才能重试。适用于管理员和业主登录。", securitySaved:"登录安全设置已保存。", saveFailed:"保存失败，请重试。", lockedNow:"已锁定的设备", noLocked:"当前没有被锁定的设备。", unlock:"解锁", unlockAll:"全部解锁", unlocksIn:"解锁倒计时", minShort:"分钟",
     pay:"支付", payTitle:"使用 PromptPay 付款", scanToPay:"用银行 App 扫码支付", noQrOwner:"暂未设置付款二维码，请联系物业办公室。", close:"关闭", payFor:"付款月份",
   },
   th:{
@@ -490,7 +490,7 @@ const I18N = {
     communityName:"ชื่อชุมชน", logo:"โลโก้", uploadLogo:"อัปโหลดโลโก้", changeLogo:"เปลี่ยนโลโก้", removeLogo:"ลบ",
     logoHelp:"PNG, JPG หรือ SVG รูปสี่เหลี่ยมจัตุรัสดูดีที่สุด สูงสุด 1.5 MB", logoTooBig:"รูปภาพใหญ่เกินไป (สูงสุด 1.5 MB)", brandingSaved:"บันทึกแบรนด์แล้ว", noLogo:"ยังไม่ได้อัปโหลดโลโก้",
     ppQr:"QR พร้อมเพย์สำหรับชำระเงิน", uploadQr:"อัปโหลด QR", changeQr:"เปลี่ยน QR", ppHelp:"อัปโหลด QR พร้อมเพย์ของชุมชน (PNG หรือ JPG) เจ้าของบ้านสแกนเพื่อชำระเงิน สูงสุด 1.5 MB", noPpQr:"ยังไม่ได้อัปโหลด QR พร้อมเพย์", ppSaved:"บันทึก QR ชำระเงินแล้ว",
-    loginSecTitle:"ความปลอดภัยการเข้าสู่ระบบ", loginSecSub:"ล็อกอุปกรณ์เมื่อเข้าสู่ระบบล้มเหลวหลายครั้ง เพื่อป้องกันการเดารหัสผ่าน", maxLoginAttempts:"จำนวนครั้งที่ผิดก่อนล็อก", lockoutMinutes:"ระยะเวลาล็อก (นาที)", loginSecHelp:"เมื่อใส่รหัสผ่านผิดติดต่อกันครบจำนวนนี้ อุปกรณ์นั้นต้องรอจนครบเวลาล็อกจึงจะลองใหม่ได้ ใช้กับการเข้าสู่ระบบทั้งผู้ดูแลและเจ้าของบ้าน", securitySaved:"บันทึกการตั้งค่าความปลอดภัยแล้ว", saveFailed:"บันทึกไม่สำเร็จ โปรดลองอีกครั้ง",
+    loginSecTitle:"ความปลอดภัยการเข้าสู่ระบบ", loginSecSub:"ล็อกอุปกรณ์เมื่อเข้าสู่ระบบล้มเหลวหลายครั้ง เพื่อป้องกันการเดารหัสผ่าน", maxLoginAttempts:"จำนวนครั้งที่ผิดก่อนล็อก", lockoutMinutes:"ระยะเวลาล็อก (นาที)", loginSecHelp:"เมื่อใส่รหัสผ่านผิดติดต่อกันครบจำนวนนี้ อุปกรณ์นั้นต้องรอจนครบเวลาล็อกจึงจะลองใหม่ได้ ใช้กับการเข้าสู่ระบบทั้งผู้ดูแลและเจ้าของบ้าน", securitySaved:"บันทึกการตั้งค่าความปลอดภัยแล้ว", saveFailed:"บันทึกไม่สำเร็จ โปรดลองอีกครั้ง", lockedNow:"อุปกรณ์ที่ถูกล็อก", noLocked:"ขณะนี้ไม่มีอุปกรณ์ที่ถูกล็อก", unlock:"ปลดล็อก", unlockAll:"ปลดล็อกทั้งหมด", unlocksIn:"ปลดล็อกในอีก", minShort:"นาที",
     pay:"ชำระเงิน", payTitle:"ชำระผ่านพร้อมเพย์", scanToPay:"สแกนด้วยแอปธนาคารเพื่อชำระเงิน", noQrOwner:"ยังไม่มี QR ชำระเงิน กรุณาติดต่อสำนักงานนิติบุคคล", close:"ปิด", payFor:"ชำระสำหรับเดือน",
   }
 };
@@ -1284,6 +1284,7 @@ function adminSettings(){
     </div>
     <p class="help">${t('loginSecHelp')}</p>
     <button class="btn" id="saveSecurity" style="margin-top:6px">${t('save')}</button><div id="secmsg"></div>
+    <div id="lockedBox" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px"></div>
   </div>`;
 }
 function bindSettings(){
@@ -1317,9 +1318,32 @@ function bindSettings(){
     const clamp=(v,lo,hi,d)=>{ const n=Math.floor(Number(v)); return Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):d; };
     const maxLoginAttempts=clamp($('maxAtt').value,1,100,5), lockoutMinutes=clamp($('lockMin').value,1,1440,15);
     try{ const r=await api('/api/admin/security',{method:'PUT',body:{maxLoginAttempts,lockoutMinutes}});
-      if(r) applySettings(r); renderAdminBody(); setTimeout(()=>secMsg('ok','securitySaved'),0);
+      if(r) applySettings(r); renderAdminBody(); setTimeout(()=>{ secMsg('ok','securitySaved'); loadLocked(); },0);
     }catch(err){ secMsg('err','saveFailed'); }
   };
+  // Locked-out devices: list + per-device and bulk unlock.
+  async function loadLocked(){
+    const box=$('lockedBox'); if(!box) return;
+    let list=[]; try{ list=await api('/api/admin/security/locked'); }catch(e){ return; }
+    if(!list.length){ box.innerHTML=`<p class="help" style="margin:0">${t('noLocked')}</p>`; return; }
+    const rows=list.map(l=>{ const mins=Math.max(1,Math.ceil(l.retryAfter/60));
+      return `<div class="rowflex" style="align-items:center;gap:10px;margin-top:8px">
+        <div style="flex:1;min-width:160px"><strong>${esc(l.ip)}</strong> <span class="pill warn">${esc(l.scope)}</span>
+          <span class="help" style="display:inline;margin-left:6px">${t('unlocksIn')} ~${mins} ${t('minShort')}</span></div>
+        <button class="btn ghost sm" data-unlock="${esc(l.key)}">${svg('shield','icn sm')} ${t('unlock')}</button>
+      </div>`; }).join('');
+    box.innerHTML=`<label style="margin:0 0 4px">${t('lockedNow')} (${list.length})</label>${rows}
+      <button class="btn danger sm" id="unlockAll" style="margin-top:12px">${t('unlockAll')}</button>`;
+    box.querySelectorAll('[data-unlock]').forEach(btn=>btn.onclick=async()=>{
+      try{ await api('/api/admin/security/unlock',{method:'POST',body:{key:btn.getAttribute('data-unlock')}}); }catch(e){}
+      loadLocked();
+    });
+    const ua=$('unlockAll'); if(ua) ua.onclick=async()=>{
+      try{ await api('/api/admin/security/unlock',{method:'POST',body:{all:true}}); }catch(e){}
+      loadLocked();
+    };
+  }
+  loadLocked();
 }
 
 /* ===================== OWNER ===================== */

@@ -49,5 +49,37 @@ export function clearAttempts(scope, req) {
   attempts.delete(keyFor(scope, req));
 }
 
+// Currently locked-out clients, for the admin to review/release. Each entry is
+// { key, scope, ip, retryAfter } where retryAfter is seconds left on the lock.
+// Expired locks are swept out as a side effect.
+export function listLocked() {
+  const now = Date.now();
+  const out = [];
+  for (const [key, rec] of attempts) {
+    if (!rec.lockedUntil) continue;
+    if (rec.lockedUntil <= now) { attempts.delete(key); continue; }
+    const sep = key.indexOf(':');
+    out.push({
+      key,
+      scope: key.slice(0, sep),
+      ip: key.slice(sep + 1),
+      retryAfter: Math.ceil((rec.lockedUntil - now) / 1000),
+    });
+  }
+  return out;
+}
+
+// Admin: release one locked client by key. Returns true if a record was removed.
+export function unlock(key) {
+  return attempts.delete(key);
+}
+
+// Admin: release every locked/tracked client. Returns the number cleared.
+export function unlockAll() {
+  const n = attempts.size;
+  attempts.clear();
+  return n;
+}
+
 // Test-only: wipe all tracked state.
 export function _reset() { attempts.clear(); }
