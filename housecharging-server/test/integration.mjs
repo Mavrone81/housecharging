@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { newDb } from 'pg-mem';
 import { setPool } from '../src/db.js';
 import { hashPassword } from '../src/auth.js';
+import { _reset as resetGuard } from '../src/loginGuard.js';
 
 // Build an in-memory Postgres and a pg-compatible pool, then inject it.
 const mem = newDb();
@@ -99,6 +100,36 @@ try {
   // 8. duplicate username rejected
   r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'x', houseNumber: 'A-101' } });
   ok(r.status === 409, 'duplicate owner username rejected');
+
+  // 9. brute-force lockout (H-1): admin-configurable threshold, default-style behaviour
+  resetGuard();
+  r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 3, lockoutMinutes: 15 } });
+  ok(r.status === 200 && r.data.max_login_attempts === 3 && r.data.login_lockout_minutes === 15,
+    'admin sets lockout threshold to 3 / 15 min');
+  const sb = (await J('/api/admin/bootstrap', { token: adminToken })).data.settings;
+  ok(sb.max_login_attempts === 3, 'bootstrap exposes the threshold to the client');
+
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
+  ok(r.status === 401, 'lockout: 1st wrong password -> 401');
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
+  ok(r.status === 401, 'lockout: 2nd wrong password -> 401');
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
+  ok(r.status === 429 && r.data.retryAfter > 0, 'lockout: 3rd attempt -> 429 with retryAfter');
+  // While locked, even the CORRECT password is refused.
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
+  ok(r.status === 429, 'lockout: correct password also blocked while locked');
+
+  // Clearing on success: a fresh client (reset) with one miss then a hit logs in fine.
+  resetGuard();
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'nope' } });
+  ok(r.status === 401, 'reset: one miss -> 401');
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
+  ok(r.status === 200 && r.data.token, 'reset: correct password logs in (counter cleared)');
+
+  // Threshold is clamped server-side to a sane range.
+  r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 0, lockoutMinutes: 99999 } });
+  ok(r.data.max_login_attempts === 1 && r.data.login_lockout_minutes === 1440,
+    'security values clamped (attempts>=1, minutes<=1440)');
 } catch (e) {
   fail++; console.log('  EXCEPTION', e.stack || e.message);
 }

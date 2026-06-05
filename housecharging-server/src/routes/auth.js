@@ -1,18 +1,46 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { signToken, hashPassword, verifyPassword } from '../auth.js';
+import { lockoutRemaining, registerFailure, clearAttempts } from '../loginGuard.js';
 
 const router = Router();
+
+// Read the admin-configurable brute-force settings (threshold + lockout window).
+async function loginConfig() {
+  const { rows } = await query('SELECT max_login_attempts, login_lockout_minutes FROM settings WHERE id=1');
+  const s = rows[0] || {};
+  return {
+    maxAttempts: Number(s.max_login_attempts) || 0, // 0 = lockout disabled
+    lockoutMs: (Number(s.login_lockout_minutes) || 15) * 60 * 1000,
+  };
+}
+
+// 429 with a human-readable wait time and a Retry-After header.
+function lockedResponse(res, secs) {
+  res.set('Retry-After', String(secs));
+  const mins = Math.ceil(secs / 60);
+  return res.status(429).json({
+    error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? '' : 's'}.`,
+    retryAfter: secs,
+  });
+}
 
 // Admin login
 router.post('/admin/login', async (req, res, next) => {
   try {
+    const locked = lockoutRemaining('admin', req);
+    if (locked) return lockedResponse(res, locked);
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
     const { rows } = await query('SELECT * FROM admins WHERE username=$1', [username]);
     const admin = rows[0];
-    if (!admin || !(await verifyPassword(password, admin.password_hash)))
+    if (!admin || !(await verifyPassword(password, admin.password_hash))) {
+      const { maxAttempts, lockoutMs } = await loginConfig();
+      const { lockedFor } = registerFailure('admin', req, maxAttempts, lockoutMs);
+      if (lockedFor) return lockedResponse(res, lockedFor);
       return res.status(401).json({ error: 'Incorrect username or password' });
+    }
+    clearAttempts('admin', req);
     const token = signToken({ role: 'admin', id: admin.id, username: admin.username });
     res.json({ token, role: 'admin', username: admin.username });
   } catch (e) { next(e); }
@@ -21,12 +49,21 @@ router.post('/admin/login', async (req, res, next) => {
 // Owner login (only approved owners may sign in)
 router.post('/owner/login', async (req, res, next) => {
   try {
+    const locked = lockoutRemaining('owner', req);
+    if (locked) return lockedResponse(res, locked);
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
     const { rows } = await query('SELECT * FROM owners WHERE lower(username)=lower($1)', [username]);
     const owner = rows[0];
-    if (!owner || !(await verifyPassword(password, owner.password_hash)))
+    if (!owner || !(await verifyPassword(password, owner.password_hash))) {
+      const { maxAttempts, lockoutMs } = await loginConfig();
+      const { lockedFor } = registerFailure('owner', req, maxAttempts, lockoutMs);
+      if (lockedFor) return lockedResponse(res, lockedFor);
       return res.status(401).json({ error: 'Incorrect username or password' });
+    }
+    // Correct credentials — clear the counter before the approval-state checks
+    // (a pending/rejected account is not a failed login).
+    clearAttempts('owner', req);
     if (owner.status === 'pending') return res.status(403).json({ error: 'pending' });
     if (owner.status === 'rejected') return res.status(403).json({ error: 'rejected' });
     const token = signToken({ role: 'owner', id: owner.id, username: owner.username, houseNumber: owner.house_number });

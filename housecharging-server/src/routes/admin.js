@@ -103,6 +103,24 @@ router.put('/settings', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// --- Login security (admin-configurable brute-force lockout) ---
+router.put('/security', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const clamp = (v, d, lo, hi) => {
+      const n = Math.floor(Number(v));
+      return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
+    };
+    const maxAttempts = clamp(b.maxLoginAttempts, 5, 1, 100);
+    const lockoutMin = clamp(b.lockoutMinutes, 15, 1, 1440);
+    const { rows } = await query(
+      `UPDATE settings SET max_login_attempts=$1, login_lockout_minutes=$2, updated_at=now()
+       WHERE id=1 RETURNING *`,
+      [maxAttempts, lockoutMin]);
+    res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+
 // --- Branding ---
 router.put('/branding', async (req, res, next) => {
   try {

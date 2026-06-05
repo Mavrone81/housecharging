@@ -75,6 +75,10 @@ CREATE TABLE IF NOT EXISTS settings (
   formula_water  TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
   formula_gas    TEXT NOT NULL DEFAULT '(curr - prev) * rate + fixed',
   promptpay_qr   TEXT,
+  -- Brute-force protection: lock a client out after this many consecutive failed
+  -- logins, for this many minutes. Admin-configurable from the Settings page.
+  max_login_attempts    INTEGER NOT NULL DEFAULT 5,
+  login_lockout_minutes INTEGER NOT NULL DEFAULT 15,
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT settings_singleton CHECK (id = 1)
 );
@@ -86,6 +90,10 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS promptpay_qr TEXT;
 -- Community default garbage/service fees (per-house overrides live on houses).
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS garbage_fee NUMERIC NOT NULL DEFAULT 0;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS service_fee NUMERIC NOT NULL DEFAULT 0;
+
+-- Login brute-force lockout (ALTER so existing databases pick these up on re-migrate).
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS max_login_attempts    INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS login_lockout_minutes INTEGER NOT NULL DEFAULT 15;
 
 -- Seed the singleton settings row so the app's UPDATE ... WHERE id=1 always has a target.
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
