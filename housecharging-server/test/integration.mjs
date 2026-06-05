@@ -36,6 +36,18 @@ const J = async (path, { method = 'GET', token, body } = {}) => {
 };
 
 try {
+  // 0. security headers (M-1) present + framework banner hidden (L-3)
+  {
+    const res = await fetch(base + '/api/health');
+    const h = res.headers;
+    ok(h.get('content-security-policy')?.includes("default-src 'self'"), 'CSP header set');
+    ok(h.get('x-content-type-options') === 'nosniff', 'X-Content-Type-Options: nosniff');
+    ok(h.get('x-frame-options') === 'DENY', 'X-Frame-Options: DENY');
+    ok((h.get('strict-transport-security') || '').includes('max-age='), 'HSTS header set');
+    ok(h.get('referrer-policy') === 'no-referrer', 'Referrer-Policy set');
+    ok(!h.get('x-powered-by'), 'X-Powered-By hidden');
+  }
+
   // 1. admin login
   let r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
   ok(r.status === 200 && r.data.token, 'admin login returns token');

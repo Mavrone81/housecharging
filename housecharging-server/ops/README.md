@@ -14,6 +14,28 @@ itself is documented in the top-level `README.md`.
 - Secrets (`POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_PASSWORD`) live in a gitignored
   `.env`; compose substitutes them and fails fast if unset.
 
+## Security headers (VAPT M-1 / L-3)
+The app sets the security response headers itself (CSP, HSTS, `X-Frame-Options`,
+`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) and disables the
+`X-Powered-By` banner — see `src/app.js`. nginx passes these through unchanged.
+
+Two things must still be done at the nginx layer (it owns these, the app can't):
+
+1. **Hide the nginx version banner (L-3):** in the `http {}` block of
+   `/etc/nginx/nginx.conf`:
+
+       server_tokens off;
+
+2. **(Optional) Move HSTS to the TLS edge.** The app already sends HSTS, so this is
+   only needed if you'd rather own it at nginx. If you do, add it to the `server {}`
+   block and it's fine to leave the app's copy (browsers tolerate one value):
+
+       add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+Apply with `nginx -t && systemctl reload nginx`. Verify end-to-end:
+
+    curl -sI https://mcts.urbanwerkzsg.com | grep -iE 'content-security|strict-transport|x-frame|x-content|referrer|permissions|server|x-powered'
+
 ## Backups
 `mcts-db-backup.sh` takes a gzipped `pg_dump`, written atomically, keeping 14 days.
 Deployed copy lives at `/usr/local/bin/mcts-db-backup.sh`, scheduled nightly via cron:

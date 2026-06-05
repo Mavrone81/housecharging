@@ -9,8 +9,39 @@ import ownerRoutes from './routes/owner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Content-Security-Policy for the bundled client. 'unsafe-inline' is required
+// because the single-file client uses inline <script>/<style> and inline event
+// handlers; data: covers the uploaded logo / PromptPay QR / proof images; the
+// Google Fonts origins serve the web fonts.
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data:",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "connect-src 'self'",
+].join('; ');
+
+// Security response headers (VAPT M-1). HSTS only takes effect over HTTPS, which
+// is how clients reach the app (nginx terminates TLS and proxies these through).
+function securityHeaders(_req, res, next) {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'no-referrer');
+  res.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
+  res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.set('Content-Security-Policy', CSP);
+  next();
+}
+
 export function createApp() {
   const app = express();
+  app.disable('x-powered-by'); // hide the framework banner (VAPT L-3)
+  app.use(securityHeaders);
   app.use(express.json({ limit: '12mb' })); // logo + PromptPay QR data URLs can be large
 
   const origins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
