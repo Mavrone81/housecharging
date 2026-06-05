@@ -962,9 +962,11 @@ function bindRates(){
 }
 /* --- Readings --- */
 let curMonth=(new Date()).toISOString().slice(0,7);
+let rdHouse=null; // last-selected house in Meter Readings, so it survives re-render after save
 function adminReadings(){
   if(!db.houses.length) return `<div class="card"><h2>${t('readingsTitle')}</h2><div class="notice info">${t('noHouses')}</div></div>`;
-  const opts=db.houses.map(h=>`<option value="${h.id}">${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</option>`).join('');
+  if(!rdHouse||!db.houses.some(h=>h.id===rdHouse)) rdHouse=db.houses[0].id;
+  const opts=db.houses.map(h=>`<option value="${h.id}"${h.id===rdHouse?' selected':''}>${esc(h.houseNumber)}${h.cluster?' · '+esc(h.cluster):''}</option>`).join('');
   const recent=[...db.readings].sort((a,b)=>b.period.localeCompare(a.period)).slice(0,12);
   const rrows=recent.length?recent.map(r=>{const h=houseById(r.houseId);if(!h)return'';const c=calcInvoice(r);
     return `<tr><td><strong>${esc(h.houseNumber)}</strong></td><td class="muted">${periodLabel(r.period)}</td>
@@ -1013,7 +1015,7 @@ function bindReadings(){
       <div class="stat"><div class="ico gas">${svg('gas')}</div><div class="l">${t('gas')} · ${t('usage')} ${c.gU}</div><div class="v" style="font-size:18px">${money(c.gC)}</div></div>
       <div class="stat" style="background:var(--brand-soft);border-color:var(--brand-2)"><div class="ico brand">${svg('invoice')}</div><div class="l">${t('total')}</div><div class="v" style="font-size:20px;color:var(--brand-d)">${money(c.total)}</div></div></div>`;
   }
-  $('rHouse').onchange=autofill; $('rPeriod').onchange=autofill;
+  $('rHouse').onchange=()=>{ rdHouse=$('rHouse').value; autofill(); }; $('rPeriod').onchange=autofill;
   ['wp','wc','gp','gc'].forEach(id=>$(id).addEventListener('input',preview));
   autofill();
   $('saveReading').onclick=()=>{
@@ -1021,7 +1023,7 @@ function bindReadings(){
     const wp=+$('wp').value||0,gp=+$('gp').value||0;
     const wc=curOrPrev('wc',wp), gc=curOrPrev('gc',gp);  // blank current → equals previous
     if(wc<wp||gc<gp){ $('rdmsg').innerHTML=`<div class="notice err">${t('currLessPrev')}</div>`; return; }
-    curMonth=per;
+    curMonth=per; rdHouse=hid;  // remember selection so re-render keeps this house
     const ex=db.readings.find(r=>r.houseId===hid&&r.period===per);
     if(ex){ Object.assign(ex,{waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc}); }
     else db.readings.push({id:uid('r'),houseId:hid,period:per,waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc});
