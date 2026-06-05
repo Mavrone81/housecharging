@@ -47,36 +47,36 @@ after deploy:
 Goal: put the Postgres data directory on a **DigitalOcean Block Storage** volume,
 which DO encrypts at rest, instead of the unencrypted droplet root disk.
 
-1. **Create + attach** a Block Storage volume to the droplet (DO panel → Volumes,
-   same region sgp1). DO gives a stable device path like
-   `/dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata`.
-2. **Format + mount** it (one-time), and persist in `/etc/fstab`:
+**Step 1 (manual, DO panel):** create a Block Storage volume in region **sgp1** and
+**attach** it to the droplet. DO gives a stable device path like
+`/dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata`.
 
-       mkfs.ext4 /dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata
-       mkdir -p /mnt/mcts-pgdata
-       echo '/dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata /mnt/mcts-pgdata ext4 defaults,nofail,discard 0 2' >> /etc/fstab
-       mount -a
+**Step 2 (automated):** run the migration helper from the repo root on the droplet:
 
-3. **Take a backup first** (so the migration is reversible):
+    sudo ops/mcts-encrypt-volume.sh /dev/disk/by-id/scsi-0DO_Volume_mcts-pgdata /mnt/mcts-pgdata
 
-       /usr/local/bin/mcts-db-backup.sh
+The script does the rest safely and reversibly:
+- formats the device (only if blank) and mounts it at `/mnt/mcts-pgdata` (+ `/etc/fstab`);
+- takes a **fresh backup** via `mcts-db-backup.sh`;
+- stops the stack and **copies** (never moves) the Postgres data dir onto the volume,
+  verifying `PG_VERSION` landed;
+- switches `docker-compose.yml` to the bind mount (backing the file up to
+  `docker-compose.yml.bak.<timestamp>` first);
+- brings the stack back up and **health-checks** Postgres before declaring success.
 
-4. **Move the data** from the current Docker volume onto the encrypted mount:
+The original Docker named volume is **kept** for rollback. Only after you've verified
+the app end-to-end should you remove it:
 
-       docker compose stop app db
-       docker run --rm -v housecharging-server_pgdata:/from -v /mnt/mcts-pgdata:/to \
-         alpine sh -c 'cp -a /from/. /to/'
+    docker volume rm <old-pgdata-volume>   # the script prints the exact name
 
-   (Confirm the source volume name with `docker volume ls`.)
-5. **Point compose at the mount:** in `docker-compose.yml`, uncomment the
-   `driver_opts` bind under `volumes: pgdata:` (device `/mnt/mcts-pgdata`).
-6. **Bring it back up and verify:**
+**Rollback** (if Postgres doesn't come up): restore the compose backup and restart —
 
-       docker compose up -d
-       docker compose exec db pg_isready -U mcts
-       # spot-check the app and a known invoice, then remove the old volume:
-       # docker volume rm housecharging-server_pgdata
+    cp docker-compose.yml.bak.<timestamp> docker-compose.yml && docker compose up -d
 
+> Why a bind mount (not `driver_opts`): an existing Docker **named** volume won't adopt
+> new `driver_opts`, so that change silently wouldn't take effect. A bind mount on the
+> service always uses the host path as-is.
+>
 > Note: this encrypts the **live database** disk. Backups are covered separately
 > (M-4 — ship them off-box and encrypt the dumps).
 

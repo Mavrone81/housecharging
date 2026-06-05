@@ -14,7 +14,12 @@ services:
     # Not published to the host: the app reaches Postgres over the internal compose
     # network. (Host port 5432 is already used by another service on this box.)
     volumes:
+      # Default: Docker-managed named volume (on the unencrypted droplet root disk).
       - pgdata:/var/lib/postgresql/data
+      # Encryption at rest (VAPT M-3): comment the line above and uncomment this bind
+      # to a DigitalOcean Block Storage (DO-encrypted) mount. ops/mcts-encrypt-volume.sh
+      # automates the switch; see ops/README.md → "Encryption at rest".
+      # - /mnt/mcts-pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mcts"]
       interval: 5s
@@ -47,12 +52,6 @@ services:
     command: sh -c "node src/migrate.js && node src/server.js"
 
 volumes:
-  # Postgres data. For encryption at rest (VAPT M-3), back this with a DigitalOcean
-  # Block Storage volume (DO-encrypted) mounted on the host, then uncomment the
-  # bind below and remove the empty default. See ops/README.md → "Encryption at rest".
+  # Postgres data (used unless the db service is switched to the encrypted bind mount
+  # above for VAPT M-3 — see ops/README.md → "Encryption at rest").
   pgdata:
-    # driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /mnt/mcts-pgdata
