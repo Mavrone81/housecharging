@@ -175,6 +175,41 @@ try {
     ok(r.status === 200 && r.data.houses.length === 1, 'R1c cleanup: back to single house A-101');
   }
 
+  // 4d. R2 part 2: per-resource endpoints with per-row optimistic concurrency.
+  {
+    r = await J('/api/admin/houses', { method: 'POST', token: adminToken, body: { cluster: 'Zone C', houseNumber: 'C-303', ownerName: 'Anan' } });
+    ok(r.status === 201 && r.data.id && r.data.rev === 0, 'per-resource: POST /houses creates a house (rev 0)');
+    const hid = r.data.id;
+    r = await J('/api/admin/houses', { method: 'POST', token: adminToken, body: { houseNumber: 'C-303' } });
+    ok(r.status === 409, 'per-resource: POST /houses rejects a duplicate number');
+    r = await J('/api/admin/houses/' + hid, { method: 'PUT', token: adminToken, body: { houseNumber: 'C-303', ownerName: 'Anan B.', expectedRev: 0 } });
+    ok(r.status === 200 && r.data.rev === 1 && r.data.owner_name === 'Anan B.', 'per-resource: PUT /houses (correct rev) updates + bumps rev');
+    r = await J('/api/admin/houses/' + hid, { method: 'PUT', token: adminToken, body: { houseNumber: 'C-303', ownerName: 'X', expectedRev: 0 } });
+    ok(r.status === 409, 'per-resource: PUT /houses (stale rev) rejected (409)');
+    r = await J('/api/admin/houses/' + hid, { method: 'PUT', token: adminToken, body: { houseNumber: 'A-101', expectedRev: 1 } });
+    ok(r.status === 409, 'per-resource: PUT /houses rename onto an existing number rejected (409)');
+
+    r = await J('/api/admin/readings', { method: 'POST', token: adminToken, body: { houseId: hid, period: '2026-05', waterPrev: 10, waterCurr: 20, gasPrev: 5, gasCurr: 8 } });
+    ok(r.status === 200 && r.data.rev === 0, 'per-resource: POST /readings creates a reading (rev 0)');
+    r = await J('/api/admin/readings', { method: 'POST', token: adminToken, body: { houseId: hid, period: '2026-05', waterPrev: 10, waterCurr: 25, gasPrev: 5, gasCurr: 9, expectedRev: 0 } });
+    ok(r.status === 200 && r.data.rev === 1 && Number(r.data.water_curr) === 25, 'per-resource: POST /readings (correct rev) updates + bumps rev');
+    r = await J('/api/admin/readings', { method: 'POST', token: adminToken, body: { houseId: hid, period: '2026-05', waterPrev: 10, waterCurr: 30, gasPrev: 5, gasCurr: 9, expectedRev: 0 } });
+    ok(r.status === 409, 'per-resource: POST /readings (stale rev) rejected (409)');
+
+    const sv = (await J('/api/admin/bootstrap', { token: adminToken })).data.settings.state_version;
+    const setBody = (ver) => ({ baseVersion: ver, currency: 'THB', waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+      garbageFee: 0, serviceFee: 0, formulaWater: '(curr - prev) * rate + fixed', formulaGas: '(curr - prev) * rate' });
+    r = await J('/api/admin/settings', { method: 'PUT', token: adminToken, body: setBody(sv) });
+    ok(r.status === 200 && r.data.settings.state_version === sv + 1, 'per-resource: PUT /settings (correct version) bumps state_version');
+    r = await J('/api/admin/settings', { method: 'PUT', token: adminToken, body: setBody(sv) });
+    ok(r.status === 409, 'per-resource: PUT /settings (stale version) rejected (409)');
+
+    r = await J('/api/admin/houses/' + hid, { method: 'DELETE', token: adminToken });
+    ok(r.status === 200, 'per-resource: DELETE /houses removes the test house');
+    const left = (await J('/api/admin/bootstrap', { token: adminToken })).data.houses;
+    ok(left.length === 1 && left[0].house_number === 'A-101', 'per-resource: cleanup left only A-101');
+  }
+
   // 5. owner registration -> pending -> cannot log in yet
   r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
   ok(r.status === 201, 'owner registered (pending)');

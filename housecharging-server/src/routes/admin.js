@@ -78,10 +78,21 @@ router.put('/houses/:id', async (req, res, next) => {
   try {
     const { cluster = '', houseNumber, ownerName = '' } = req.body || {};
     if (!houseNumber) return res.status(400).json({ error: 'House number is required' });
+    // Renaming onto another house's number → clear 409 (not a unique-violation 500).
+    const clash = await query('SELECT 1 FROM houses WHERE lower(house_number)=lower($1) AND id<>$2', [houseNumber, req.params.id]);
+    if (clash.rows.length) return res.status(409).json({ error: 'House number already exists' });
+    const expectedRev = (req.body.expectedRev === undefined || req.body.expectedRev === null) ? null : Number(req.body.expectedRev);
+    const params = [cluster, houseNumber, ownerName, feeOverride(req.body.garbageFee), feeOverride(req.body.serviceFee), req.params.id];
+    const where = expectedRev === null ? 'id=$6' : 'id=$6 AND rev=$7';
+    if (expectedRev !== null) params.push(expectedRev);
     const { rows } = await query(
-      'UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3, garbage_fee=$4, service_fee=$5 WHERE id=$6 RETURNING *',
-      [cluster, houseNumber, ownerName, feeOverride(req.body.garbageFee), feeOverride(req.body.serviceFee), req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'House not found' });
+      `UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3, garbage_fee=$4, service_fee=$5, rev=rev+1
+       WHERE ${where} RETURNING *`, params);
+    if (!rows.length) {
+      const exists = await query('SELECT 1 FROM houses WHERE id=$1', [req.params.id]);
+      if (!exists.rows.length) return res.status(404).json({ error: 'House not found' });
+      return res.status(409).json({ error: 'House was changed by another session' }); // rev mismatch
+    }
     res.json(rows[0]);
   } catch (e) { next(e); }
 });
@@ -100,11 +111,21 @@ router.put('/settings', async (req, res, next) => {
     const num = (v, d) => (v === undefined || v === null || v === '' ? d : Number(v));
     const fw = typeof b.formulaWater === 'string' && isValidFormula(b.formulaWater) ? b.formulaWater : DEFAULT_FORMULA;
     const fg = typeof b.formulaGas === 'string' && isValidFormula(b.formulaGas) ? b.formulaGas : DEFAULT_FORMULA;
+    // Optimistic concurrency (R2): if the client sent the state_version it loaded and
+    // it no longer matches, reject with 409 + the current settings instead of clobbering.
+    const baseVersion = (b.baseVersion === undefined || b.baseVersion === null) ? null : Number(b.baseVersion);
+    const params = [b.currency || 'THB', num(b.waterRate, 0), num(b.waterFixed, 0),
+      num(b.gasRate, 0), num(b.gasFixed, 0), fw, fg, num(b.garbageFee, 0), num(b.serviceFee, 0)];
+    const where = baseVersion === null ? 'id=1' : 'id=1 AND state_version=$10';
+    if (baseVersion !== null) params.push(baseVersion);
     const { rows } = await query(
       `UPDATE settings SET currency=$1, water_rate=$2, water_fixed=$3, gas_rate=$4, gas_fixed=$5,
-         formula_water=$6, formula_gas=$7, garbage_fee=$8, service_fee=$9, updated_at=now() WHERE id=1 RETURNING *`,
-      [b.currency || 'THB', num(b.waterRate, 0), num(b.waterFixed, 0),
-       num(b.gasRate, 0), num(b.gasFixed, 0), fw, fg, num(b.garbageFee, 0), num(b.serviceFee, 0)]);
+         formula_water=$6, formula_gas=$7, garbage_fee=$8, service_fee=$9,
+         state_version=state_version+1, updated_at=now() WHERE ${where} RETURNING *`, params);
+    if (!rows.length) {
+      const cur = (await query('SELECT * FROM settings WHERE id=1')).rows[0];
+      return res.status(409).json({ error: 'Settings were changed by another session', settings: cur });
+    }
     res.json({ settings: rows[0], formulaWaterValid: fw === b.formulaWater, formulaGasValid: fg === b.formulaGas });
   } catch (e) { next(e); }
 });
@@ -166,14 +187,22 @@ router.post('/readings', async (req, res, next) => {
     const wc = (b.waterCurr === '' || b.waterCurr == null) ? wp : n(b.waterCurr);
     const gc = (b.gasCurr === '' || b.gasCurr == null) ? gp : n(b.gasCurr);
     if (wc < wp || gc < gp) return res.status(400).json({ error: 'Current reading must be ≥ previous' });
+    // Optimistic concurrency (R2): when updating an existing month, reject if the
+    // client's rev is stale rather than overwriting a concurrent edit.
+    const existing = (await query('SELECT rev FROM readings WHERE house_id=$1 AND period=$2', [b.houseId, b.period])).rows[0];
+    if (existing && b.expectedRev !== undefined && b.expectedRev !== null && Number(b.expectedRev) !== existing.rev) {
+      return res.status(409).json({ error: 'Reading was changed by another session' });
+    }
+    const newRev = existing ? existing.rev + 1 : 0; // 0 on create, bump on update
     const { rows } = await query(
-      `INSERT INTO readings (house_id, period, water_prev, water_curr, gas_prev, gas_curr)
-       VALUES ($1,$2,$3,$4,$5,$6)
+      `INSERT INTO readings (house_id, period, water_prev, water_curr, gas_prev, gas_curr, rev)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
        ON CONFLICT (house_id, period) DO UPDATE
          SET water_prev=EXCLUDED.water_prev, water_curr=EXCLUDED.water_curr,
-             gas_prev=EXCLUDED.gas_prev, gas_curr=EXCLUDED.gas_curr, updated_at=now()
+             gas_prev=EXCLUDED.gas_prev, gas_curr=EXCLUDED.gas_curr,
+             rev=EXCLUDED.rev, updated_at=now()
        RETURNING *`,
-      [b.houseId, b.period, wp, wc, gp, gc]);
+      [b.houseId, b.period, wp, wc, gp, gc, newRev]);
     const s = await getSettings();
     const hf = (await query('SELECT garbage_fee, service_fee FROM houses WHERE id=$1', [b.houseId])).rows[0] || {};
     res.json({ ...rows[0], ...computeInvoice(rows[0], s, { garbage: hf.garbage_fee, service: hf.service_fee }) });
@@ -236,7 +265,11 @@ router.get('/invoices', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// --- Whole-state sync (houses + readings + settings) used by the web client ---
+// --- Whole-state sync (houses + readings + settings) ---
+// DEPRECATED (R2): the web client now persists via the per-resource endpoints above
+// (POST/PUT/DELETE /houses, POST /readings, PUT /settings) with per-row optimistic
+// concurrency. This whole-state upsert is kept for backward compatibility / scripts;
+// it still enforces the state_version guard. Prefer the per-resource endpoints.
 router.put('/state', async (req, res, next) => {
   try {
     const b = req.body || {};

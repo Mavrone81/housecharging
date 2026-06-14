@@ -70,11 +70,12 @@ commits to:
    by design.
 2. **An issued invoice is immutable.** Its amount and invoice number do not change
    after issue; corrections are new records, not edits.
-3. **Concurrent admin edits do not silently clobber each other.** The state sync
-   carries a monotonic `state_version`; a save from a client that loaded an older
-   version is rejected (HTTP 409) and the latest state is returned, instead of
-   overwriting the newer data (R2, optimistic concurrency done). Migrating the
-   client to per-resource REST endpoints remains tracked under R2.
+3. **Concurrent admin edits do not silently clobber each other.** The client persists
+   through per-resource REST endpoints with per-row optimistic concurrency: houses and
+   readings carry a `rev`, settings a `state_version`. A save from a client holding a
+   stale rev/version is rejected (HTTP 409) and the latest data is reloaded, instead of
+   overwriting the newer change (R2 done). The legacy whole-state `PUT /state` is
+   deprecated (kept as a backward-compatible, still version-guarded fallback).
 4. **Money math is computed server-side** from stored readings/rates via the safe
    formula evaluator, and is reproducible for any past period.
 
@@ -85,9 +86,10 @@ commits to:
   `index.html` for demos.
 - **Server:** Express + PostgreSQL. bcrypt passwords, JWT sessions (12h), admin/owner
   roles, parameterized SQL, DB-backed login lockout, security headers + CSP.
-- **Admin persistence:** debounced `PUT /api/admin/state` (full houses/readings/settings
-  snapshot). Owner accounts use dedicated register + approve/reject endpoints and are
-  never overwritten by the state sync.
+- **Admin persistence:** per-resource REST endpoints (`POST/PUT/DELETE /houses`,
+  `POST /readings`, `PUT /settings`, `PUT /branding`) with per-row optimistic concurrency
+  (`rev` / `state_version`). The legacy whole-state `PUT /api/admin/state` is deprecated but
+  kept as a fallback. Owner accounts use dedicated register + approve/reject endpoints.
 - **Deploy:** `docker compose` (app + Postgres) behind host nginx + Let's Encrypt at
   `mcts.urbanwerkzsg.com`; also a Render blueprint for UAT.
 
@@ -110,7 +112,7 @@ Priority: P1 = before real resident data / wider rollout · P2 = soon · P3 = hy
 | # | Item | Pri | Status |
 |---|------|-----|--------|
 | R1 | House rename/renumber preserves reading history (data-integrity #1) | P1 | **done** — state sync keyed by stable house id |
-| R2 | Optimistic concurrency on admin saves (done); migrate client to per-resource REST + retire full-state `PUT` (remaining) | P2 | partial — version guard done, REST migration open |
+| R2 | Per-resource REST persistence with per-row optimistic concurrency; full-state `PUT` deprecated | P2 | **done** |
 | H-2 | Rotate admin password | P1 | **deferred (deliberate)** — ops |
 | H-3 | Attach DO Cloud Firewall | P1 | **deferred (deliberate)** — ops |
 | M-3 | Mount encrypted Postgres volume | P2 | **deferred (deliberate)** — tooling ready |

@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS houses (
 ALTER TABLE houses ADD COLUMN IF NOT EXISTS garbage_fee NUMERIC;
 ALTER TABLE houses ADD COLUMN IF NOT EXISTS service_fee NUMERIC;
 
+-- Row revision for per-row optimistic concurrency (R2): bumped on every update via
+-- the per-resource endpoints; the client sends the rev it last saw and a mismatch
+-- is rejected (409) instead of overwriting a concurrent edit.
+ALTER TABLE houses ADD COLUMN IF NOT EXISTS rev INTEGER NOT NULL DEFAULT 0;
+
 -- Per-period meter readings. One row per (house, period). Deleting a house drops
 -- its readings (cascade) — matches the README note about renaming a house.
 CREATE TABLE IF NOT EXISTS readings (
@@ -58,6 +63,9 @@ CREATE TABLE IF NOT EXISTS readings (
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS paid          BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS paid_at       TIMESTAMPTZ;
 ALTER TABLE readings ADD COLUMN IF NOT EXISTS payment_proof TEXT;
+
+-- Row revision for per-row optimistic concurrency (R2), as on houses.
+ALTER TABLE readings ADD COLUMN IF NOT EXISTS rev INTEGER NOT NULL DEFAULT 0;
 
 -- Single-row settings table (always id=1): branding, rates and billing formulas.
 CREATE TABLE IF NOT EXISTS settings (

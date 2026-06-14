@@ -527,10 +527,10 @@ let db = {
 };
 // Per-house fee override: null = inherit the community default.
 const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'',
-  garbageFee:(h.garbage_fee==null?null:Number(h.garbage_fee)), serviceFee:(h.service_fee==null?null:Number(h.service_fee)) });
+  garbageFee:(h.garbage_fee==null?null:Number(h.garbage_fee)), serviceFee:(h.service_fee==null?null:Number(h.service_fee)), rev:Number(h.rev)||0 });
 const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:r.period,
   waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
-  waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof });
+  waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof, rev:Number(r.rev)||0 });
 const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
 function applySettings(s){
   db.stateVersion=Number(s.state_version)||0;
@@ -563,41 +563,27 @@ async function loadOwner(){
     waterPrev:Number(r.water_prev), waterCurr:Number(r.water_curr), gasPrev:Number(r.gas_prev), gasCurr:Number(r.gas_curr),
     waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof }));
 }
-// Whole-state persistence (admin only): houses + readings + settings/rates/formula.
-let _saveTimer=null;
-function buildState(){
-  const idToNo=Object.fromEntries(db.houses.map(h=>[h.id, h.houseNumber]));
-  return {
-    // Last state version this client loaded; the server rejects the save (409) if
-    // another session has saved since, instead of silently clobbering it.
-    baseVersion: db.stateVersion,
-    settings:{ communityName:db.settings.communityName, address:db.settings.address, logo:db.settings.logo,
-      promptPayQr:db.settings.promptPayQr,
-      currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
-      gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas,
-      garbageFee:db.rates.garbageFee, serviceFee:db.rates.serviceFee },
-    // Send the stable server id for existing houses so a rename is an in-place
-    // update that keeps the house's readings (temp ids for new houses are omitted).
-    houses: db.houses.map(h=>({ id:(/^\d+$/.test(h.id)?h.id:undefined), cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName,
-      garbageFee:(h.garbageFee==null||h.garbageFee===''?null:h.garbageFee), serviceFee:(h.serviceFee==null||h.serviceFee===''?null:h.serviceFee) })),
-    readings: db.readings.map(r=>({ houseNumber:idToNo[r.houseId]||r.houseNumber, period:r.period,
-      waterPrev:r.waterPrev, waterCurr:r.waterCurr, gasPrev:r.gasPrev, gasCurr:r.gasCurr })),
-  };
+// Per-resource persistence (admin only): each edit hits its own REST endpoint with
+// per-row optimistic concurrency (houses/readings carry a `rev`, settings a
+// state_version). The old whole-state PUT /state sync is deprecated server-side.
+//
+// On a 409 the row was changed by another session: reload the authoritative state
+// and tell the admin to re-apply, rather than overwriting the other change.
+async function reloadAdmin(){ await loadAdmin(); renderAdminBody(); }
+async function onConflict(){
+  await reloadAdmin();
+  alert('That change wasn’t saved: another session updated the data. The latest data has been reloaded — please re-apply your change.');
 }
-function save(){
-  if(!session || session.role!=='admin') return;
-  clearTimeout(_saveTimer);
-  _saveTimer=setTimeout(async ()=>{
-    try{ const d=await api('/api/admin/state',{method:'PUT',body:buildState()});
-      if(d&&d.houses){ db.houses=d.houses.map(normHouse); db.readings=d.readings.map(normReading); applySettings(d.settings); }
-    }catch(e){
-      if(e.status===409 && e.data && e.data.houses){ // another session saved first — reload the latest instead of overwriting it
-        db.houses=e.data.houses.map(normHouse); db.readings=e.data.readings.map(normReading); applySettings(e.data.settings);
-        renderAdminBody();
-        alert('Your latest change was not saved: another session updated the data. The current data has been reloaded — please re-apply your change.');
-      } else { console.error('save failed',e); alert('Could not save to the server: '+e.message); }
-    }
-  }, 350);
+// Persist current rates + formula via the dedicated settings endpoint. Sends the
+// full set (both formulas included) because the endpoint replaces all of them.
+async function saveSettings(){
+  const d=await api('/api/admin/settings',{method:'PUT',body:{
+    baseVersion: db.stateVersion,
+    currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
+    gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed,
+    garbageFee:db.rates.garbageFee, serviceFee:db.rates.serviceFee,
+    formulaWater:db.formula.water, formulaGas:db.formula.gas }});
+  if(d&&d.settings) applySettings(d.settings);
 }
 // Branding (name/address/logo/PromptPay QR) saves via the dedicated, lightweight
 // /branding endpoint — not the heavy whole-state sync — so large QR/logo images
@@ -929,16 +915,34 @@ function feeCellText(h){
 function bindHouses(){
   const $=id=>document.getElementById(id);
   const ov=v=>{ const x=$(v).value.trim(); return x===''?null:(+x||0); };
-  $('saveHouse').onclick=()=>{
+  $('saveHouse').onclick=async ()=>{
     const no=$('hn').value.trim(); if(!no){ $('hmsg').innerHTML=`<div class="notice err">${t('houseNo')}</div>`; return; }
     const gar=ov('hgar'), ser=ov('hser');
-    if(editHouseId){ const h=db.houses.find(x=>x.id===editHouseId); h.cluster=$('hc').value.trim(); h.houseNumber=no; h.ownerName=$('ho').value.trim(); h.garbageFee=gar; h.serviceFee=ser; editHouseId=null; }
-    else db.houses.push({id:uid('h'),cluster:$('hc').value.trim(),houseNumber:no,ownerName:$('ho').value.trim(),garbageFee:gar,serviceFee:ser});
-    save(db); renderAdminBody();
+    const body={cluster:$('hc').value.trim(),houseNumber:no,ownerName:$('ho').value.trim(),garbageFee:gar,serviceFee:ser};
+    try{
+      if(editHouseId){
+        const h=db.houses.find(x=>x.id===editHouseId);
+        const d=await api('/api/admin/houses/'+editHouseId,{method:'PUT',body:{...body,expectedRev:h?h.rev:undefined}});
+        if(h) Object.assign(h, normHouse(d));
+        editHouseId=null;
+      } else {
+        const d=await api('/api/admin/houses',{method:'POST',body});
+        db.houses.push(normHouse(d));
+      }
+      renderAdminBody();
+    }catch(e){
+      if(e.status===409 && e.data && e.data.error && /already exists/i.test(e.data.error)){ $('hmsg').innerHTML=`<div class="notice err">${esc(e.data.error)}</div>`; }
+      else if(e.status===409){ await onConflict(); }
+      else { $('hmsg').innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+    }
   };
   if($('cancelHouse')) $('cancelHouse').onclick=()=>{editHouseId=null;renderAdminBody();};
   document.querySelectorAll('[data-eh]').forEach(b=>b.onclick=()=>{editHouseId=b.dataset.eh;renderAdminBody();window.scrollTo({top:0,behavior:'smooth'});});
-  document.querySelectorAll('[data-dh]').forEach(b=>b.onclick=()=>{ if(confirm(t('confirmDel'))){ db.houses=db.houses.filter(h=>h.id!==b.dataset.dh); db.readings=db.readings.filter(r=>r.houseId!==b.dataset.dh); save(db); renderAdminBody(); } });
+  document.querySelectorAll('[data-dh]').forEach(b=>b.onclick=async ()=>{ if(confirm(t('confirmDel'))){
+    try{ await api('/api/admin/houses/'+b.dataset.dh,{method:'DELETE'});
+      db.houses=db.houses.filter(h=>h.id!==b.dataset.dh); db.readings=db.readings.filter(r=>r.houseId!==b.dataset.dh); renderAdminBody();
+    }catch(e){ if(e.status===409){ await onConflict(); } else alert('Could not delete: '+e.message); }
+  } });
 }
 /* --- Rates --- */
 function adminRates(){
@@ -982,7 +986,10 @@ function bindRates(){
   const $=id=>document.getElementById(id);
   const updRates=()=>{ db.rates={currency:$('cur').value.trim()||'THB',waterRate:+$('wr').value||0,waterFixed:+$('wf').value||0,gasRate:+$('gr').value||0,gasFixed:+$('gf').value||0,garbageFee:+$('garbF').value||0,serviceFee:+$('servF').value||0}; };
   ['cur','wr','wf','gr','gf','garbF','servF'].forEach(id=>$(id).addEventListener('input',()=>{updRates();fxPreview();}));
-  $('saveRates').onclick=()=>{ updRates(); save(db); $('rmsg2').innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`; };
+  $('saveRates').onclick=async ()=>{ updRates();
+    try{ await saveSettings(); $('rmsg2').innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`; }
+    catch(e){ if(e.status===409){ await onConflict(); } else $('rmsg2').innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+  };
 
   function checkOne(inp,statusEl){
     const ok=!!compileFormula(inp.value);
@@ -1004,13 +1011,17 @@ function bindRates(){
   $('fg').addEventListener('input',validateAll);
   validateAll();
 
-  $('saveFormula').onclick=()=>{
+  $('saveFormula').onclick=async ()=>{
     const okW=checkOne($('fw'),$('fwStatus')), okG=checkOne($('fg'),$('fgStatus'));
     db.formula={ water: okW?$('fw').value.trim():DEFAULT_FORMULA, gas: okG?$('fg').value.trim():DEFAULT_FORMULA };
-    save(db);
-    $('fmsg').innerHTML = (okW&&okG)?`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`:`<div class="notice err">${t('formulaInvalid')}</div>`;
+    try{ await saveSettings();
+      $('fmsg').innerHTML = (okW&&okG)?`<div class="notice ok">${svg('shield','icn sm')} ${t('ratesSaved')}</div>`:`<div class="notice err">${t('formulaInvalid')}</div>`;
+    }catch(e){ if(e.status===409){ await onConflict(); } else $('fmsg').innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
   };
-  $('resetFormula').onclick=()=>{ $('fw').value=DEFAULT_FORMULA; $('fg').value=DEFAULT_FORMULA; db.formula={water:DEFAULT_FORMULA,gas:DEFAULT_FORMULA}; save(db); validateAll(); $('fmsg').innerHTML=`<div class="notice ok">${t('ratesSaved')}</div>`; };
+  $('resetFormula').onclick=async ()=>{ $('fw').value=DEFAULT_FORMULA; $('fg').value=DEFAULT_FORMULA; db.formula={water:DEFAULT_FORMULA,gas:DEFAULT_FORMULA};
+    try{ await saveSettings(); validateAll(); $('fmsg').innerHTML=`<div class="notice ok">${t('ratesSaved')}</div>`; }
+    catch(e){ if(e.status===409){ await onConflict(); } else $('fmsg').innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+  };
 }
 /* --- Readings --- */
 let curMonth=(new Date()).toISOString().slice(0,7);
@@ -1070,17 +1081,18 @@ function bindReadings(){
   $('rHouse').onchange=()=>{ rdHouse=$('rHouse').value; autofill(); }; $('rPeriod').onchange=autofill;
   ['wp','wc','gp','gc'].forEach(id=>$(id).addEventListener('input',preview));
   autofill();
-  $('saveReading').onclick=()=>{
+  $('saveReading').onclick=async ()=>{
     const hid=$('rHouse').value, per=$('rPeriod').value;
     const wp=+$('wp').value||0,gp=+$('gp').value||0;
     const wc=curOrPrev('wc',wp), gc=curOrPrev('gc',gp);  // blank current → equals previous
     if(wc<wp||gc<gp){ $('rdmsg').innerHTML=`<div class="notice err">${t('currLessPrev')}</div>`; return; }
     curMonth=per; rdHouse=hid;  // remember selection so re-render keeps this house
     const ex=db.readings.find(r=>r.houseId===hid&&r.period===per);
-    if(ex){ Object.assign(ex,{waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc}); }
-    else db.readings.push({id:uid('r'),houseId:hid,period:per,waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc});
-    save(db); renderAdminBody();
-    setTimeout(()=>{const m=document.getElementById('rdmsg');if(m)m.innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('readingSaved')}</div>`;},0);
+    try{
+      await api('/api/admin/readings',{method:'POST',body:{houseId:hid,period:per,waterPrev:wp,waterCurr:wc,gasPrev:gp,gasCurr:gc,expectedRev:ex?ex.rev:undefined}});
+      await loadAdmin(); renderAdminBody();  // refresh so invoice numbers stay assigned/consistent
+      setTimeout(()=>{const m=document.getElementById('rdmsg');if(m)m.innerHTML=`<div class="notice ok">${svg('shield','icn sm')} ${t('readingSaved')}</div>`;},0);
+    }catch(e){ if(e.status===409){ await onConflict(); } else $('rdmsg').innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
   };
 }
 /* --- Admin invoices --- */
