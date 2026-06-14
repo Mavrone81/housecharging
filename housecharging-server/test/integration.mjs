@@ -141,6 +141,40 @@ try {
     ok(r.status === 409 && r.data.houses, 'R2: stale save rejected with 409 + current state');
   }
 
+  // 4c. R1 follow-up: renaming a house onto another house's number is rejected (409)
+  // and nothing is lost (rolled back).
+  {
+    const baseSettings = { communityName: 'Charoensap', address: 'Moo 7', currency: 'THB',
+      waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+      formulaWater: '(curr - prev) * rate + fixed', formulaGas: '(curr - prev) * rate' };
+    let boot = (await J('/api/admin/bootstrap', { token: adminToken })).data;
+    const aId = boot.houses.find(h => h.house_number === 'A-101').id;
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+      baseVersion: boot.settings.state_version, settings: baseSettings,
+      houses: [{ id: aId, houseNumber: 'A-101', ownerName: 'Somchai' }, { houseNumber: 'B-202', ownerName: 'Malee' }],
+      readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+    }});
+    ok(r.status === 200 && r.data.houses.length === 2, 'R1c setup: a second house exists');
+    boot = (await J('/api/admin/bootstrap', { token: adminToken })).data;
+    const bId = boot.houses.find(h => h.house_number === 'B-202').id;
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+      baseVersion: boot.settings.state_version, settings: baseSettings,
+      houses: [{ id: aId, houseNumber: 'B-202', ownerName: 'Somchai' }, { id: bId, houseNumber: 'B-202', ownerName: 'Malee' }],
+      readings: [],
+    }});
+    ok(r.status === 409, 'R1c: renaming A-101 onto existing B-202 is rejected (409)');
+    boot = (await J('/api/admin/bootstrap', { token: adminToken })).data;
+    ok(boot.houses.length === 2 && boot.houses.some(h => h.house_number === 'A-101'),
+      'R1c: both houses survived the rejected rename (rolled back)');
+    // Clean up back to a single A-101 with its reading for the later owner steps.
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+      baseVersion: boot.settings.state_version, settings: baseSettings,
+      houses: [{ id: aId, houseNumber: 'A-101', ownerName: 'Somchai' }],
+      readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+    }});
+    ok(r.status === 200 && r.data.houses.length === 1, 'R1c cleanup: back to single house A-101');
+  }
+
   // 5. owner registration -> pending -> cannot log in yet
   r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
   ok(r.status === 201, 'owner registered (pending)');
@@ -163,9 +197,14 @@ try {
   ok(r.data.invoices.length === 1 && Number(r.data.invoices[0].total) === 511,
     'owner sees server-recomputed total 511 (water 336 + gas 175)');
 
-  // 8. duplicate username rejected
-  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
-  ok(r.status === 409, 'duplicate owner username rejected');
+  // 8. duplicate username: register gives the same generic reply (no enumeration, L-2)
+  //    and must NOT create a second account.
+  r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'different1', houseNumber: 'A-101' } });
+  ok(r.status === 201, 'duplicate username returns the generic 201 (no enumeration)');
+  {
+    const after = (await J('/api/admin/owners', { token: adminToken })).data.filter(o => o.username === 'res1');
+    ok(after.length === 1, 'duplicate register did not create a second res1 account');
+  }
 
   // 8b. password policy (L-1): too-short passwords rejected on register/create/reset
   r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'shorty', password: 'short', houseNumber: 'A-101' } });

@@ -79,13 +79,19 @@ router.post('/owner/register', async (req, res, next) => {
       return res.status(400).json({ error: 'All fields are required' });
     if (passwordTooShort(password))
       return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
-    const exists = await query('SELECT 1 FROM owners WHERE lower(username)=lower($1)', [username]);
-    if (exists.rows.length) return res.status(409).json({ error: 'Username already taken' });
+    // Hash regardless of whether the username is taken so the response time doesn't
+    // reveal which path was taken (timing-based enumeration), then only insert if free.
     const hash = await hashPassword(password);
-    await query(
-      `INSERT INTO owners (username, password_hash, house_number, status)
-       VALUES ($1,$2,$3,'pending')`,
-      [username, hash, houseNumber]);
+    const exists = await query('SELECT 1 FROM owners WHERE lower(username)=lower($1)', [username]);
+    if (!exists.rows.length) {
+      await query(
+        `INSERT INTO owners (username, password_hash, house_number, status)
+         VALUES ($1,$2,$3,'pending')`,
+        [username, hash, houseNumber]);
+    }
+    // Always the same generic reply: a taken username can't be probed via register (L-2).
+    // A genuine clash surfaces harmlessly when the resident tries to log in, and the
+    // admin Approvals tab is the real ownership control.
     res.status(201).json({ status: 'pending' });
   } catch (e) { next(e); }
 });

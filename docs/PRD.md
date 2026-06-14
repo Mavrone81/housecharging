@@ -121,8 +121,25 @@ Priority: P1 = before real resident data / wider rollout · P2 = soon · P3 = hy
 | L-4 | JWT revocation/refresh review | P3 | open |
 | — | CI: integration test + `npm audit` on every push/PR | done | `.github/workflows/ci.yml` |
 
-## 8. Open questions
+## 8. Decisions
 
-- Should owners ever see community-wide totals, or strictly their own house?
-- Is payment recording (mark-as-paid, PromptPay proof) in scope for v1, or view-only?
-- Retention policy for readings/invoices and for off-box backups?
+These were open questions; resolved 2026-06-14 (confirm if any should change).
+
+- **Owner visibility — own house only.** Owners never see community-wide totals or other
+  houses; this matches the current data-isolation posture (VAPT confirmed no IDOR). An
+  admin-only community dashboard already covers aggregate figures.
+- **Payment recording — in scope for v1 (already built).** The admin can mark a month
+  paid/unpaid and attach a proof-of-payment image; a PromptPay QR is shown to owners, who
+  can view their own proof. Backed by `readings.paid/paid_at/payment_proof` and the
+  `/api/admin/readings/:id/payment` + `/proof` endpoints. Online payment *collection*
+  remains a non-goal (§1).
+- **Retention.** Readings and invoices are kept **indefinitely** (immutable billing ledger,
+  per §4). Backups: **14 days** local (`mcts-db-backup.sh`) and **30 days** off-box
+  (`mcts-db-offsite.sh`, `REMOTE_RETENTION_DAYS`). ⚠️ Confirm against Thai tax-record law
+  (accounting records often must be retained ~5 years) before relying on these windows for
+  compliance — they are operational defaults, not a legal retention policy.
+
+## 9. Open questions
+
+- Legal/tax retention period for billing records in Thailand (drives backup retention above).
+- Multi-admin support beyond the current optimistic-concurrency guard (roles, audit log)?

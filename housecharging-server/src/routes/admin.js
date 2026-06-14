@@ -279,6 +279,15 @@ router.put('/state', async (req, res, next) => {
         if (!h.houseNumber) continue;
         let row = null;
         if (isId(h.id)) {
+          // Renaming onto another house's number would violate the unique
+          // constraint (a generic 500); detect it and roll back with a clear 409.
+          const clash = await client.query(
+            'SELECT 1 FROM houses WHERE lower(house_number)=lower($1) AND id<>$2', [h.houseNumber, Number(h.id)]);
+          if (clash.rows.length) {
+            const e = new Error(`House number ${h.houseNumber} is already in use`);
+            e.status = 409;
+            throw e;
+          }
           const u = await client.query(
             `UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3, garbage_fee=$4, service_fee=$5
              WHERE id=$6 RETURNING id, house_number`,
