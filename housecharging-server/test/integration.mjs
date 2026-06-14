@@ -1,13 +1,19 @@
 // End-to-end integration test of the real Express routes against an in-memory Postgres.
-// Run: node test/integration.mjs   (pg-mem must be installed)
-process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
-process.env.JWT_SECRET = 'test-secret';
+// Run: node test/integration.mjs  (or `npm test`; pg-mem is a devDependency).
+//
+// Defaults are set before the app modules load. They use ||= so an externally
+// provided DATABASE_URL/JWT_SECRET still wins, and the src modules are imported
+// dynamically AFTER these assignments — a plain static import would be hoisted
+// above them (ESM evaluates imports first) and trip db.js / auth.js fail-closed
+// guards before the env is in place.
+process.env.DATABASE_URL ||= 'postgres://test:test@localhost:5432/test';
+process.env.JWT_SECRET ||= 'test-secret';
 
 import fs from 'node:fs';
 import { newDb } from 'pg-mem';
-import { setPool } from '../src/db.js';
-import { hashPassword } from '../src/auth.js';
-import { _reset as resetGuard } from '../src/loginGuard.js';
+const { setPool } = await import('../src/db.js');
+const { hashPassword } = await import('../src/auth.js');
+const { _reset: resetGuard } = await import('../src/loginGuard.js');
 
 // Build an in-memory Postgres and a pg-compatible pool, then inject it.
 const mem = newDb();

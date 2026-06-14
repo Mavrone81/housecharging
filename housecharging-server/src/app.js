@@ -61,10 +61,13 @@ export function createApp() {
     res.sendFile(path.join(pub, 'index.html'));
   });
 
-  // JSON error handler.
+  // JSON error handler. Surface specific messages for client errors (4xx), but
+  // return a generic message for 5xx so internal details don't leak (VAPT L-6).
   app.use((err, _req, res, _next) => {
     console.error(err);
-    res.status(err.status || 500).json({ error: err.message || 'Server error' });
+    const status = err.status || 500;
+    const message = status >= 500 ? 'Server error' : (err.message || 'Request error');
+    res.status(status).json({ error: message });
   });
   return app;
 }

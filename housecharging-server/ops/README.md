@@ -179,5 +179,36 @@ Restore a backup (DANGER: overwrites current data — uses --clean --if-exists d
     zcat /root/housecharging/backups/mcts-YYYYMMDD-HHMMSS.sql.gz \
       | docker compose exec -T db psql -U mcts -d mcts
 
-> Note: backups currently sit on the same disk as the database. For real durability,
-> copy them off-box (e.g. object storage) and consider encrypting the dump files.
+## Off-box encrypted backups (VAPT M-4)
+The nightly dump above lives on the **same disk** as the database, so a disk/droplet
+loss takes both. `mcts-db-offsite.sh` ships it **off the box** to S3-compatible object
+storage (DO Spaces / S3), **encrypted with `age` first**.
+
+Security model: encryption uses an `age` **public** key. The droplet can encrypt but
+holds no key to decrypt — keep the matching **private key offline**. So even a full host
+compromise can't read the offsite copies.
+
+One-time setup on the droplet:
+
+    apt-get install -y age awscli                 # tools
+    age-keygen -o key.txt                          # do this OFFLINE; note the "Public key:" line
+    # put the PRIVATE key (key.txt) in a password manager / offline host, NOT on the droplet
+    cat >/etc/mcts-offsite.env <<'EOF'             # then chmod 600
+    AGE_RECIPIENT=age1...your-public-key...
+    S3_BUCKET=s3://mcts-backups/db
+    S3_ENDPOINT=https://sgp1.digitaloceanspaces.com
+    AWS_ACCESS_KEY_ID=...
+    AWS_SECRET_ACCESS_KEY=...
+    AWS_DEFAULT_REGION=sgp1
+    EOF
+    chmod 600 /etc/mcts-offsite.env
+
+Schedule it a few minutes after the nightly backup so it ships that fresh dump:
+
+    35 3 * * * . /etc/mcts-offsite.env && /usr/local/bin/mcts-db-offsite.sh >> /var/log/mcts-offsite.log 2>&1
+
+Restore (on any machine with the **private** key):
+
+    aws --endpoint-url "$S3_ENDPOINT" s3 cp s3://mcts-backups/db/mcts-YYYYMMDD-HHMMSS.sql.gz.age .
+    age -d -i key.txt mcts-YYYYMMDD-HHMMSS.sql.gz.age | zcat \
+      | docker compose exec -T db psql -U mcts -d mcts   # DANGER: overwrites current data
