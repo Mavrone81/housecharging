@@ -64,15 +64,17 @@ This is a billing ledger; silent data loss is the worst failure mode. The produc
 commits to:
 
 1. **A recorded meter reading is never silently dropped.** In particular,
-   *renaming/renumbering a house must preserve its reading history.* Today the
-   client treats a rename as delete-old + add-new, which **drops that house's
-   readings** — this is a known defect (see Roadmap R1), to be fixed before the
-   community grows, and avoided in the interim (rename in the DB directly).
+   *renaming/renumbering a house preserves its reading history.* The state sync
+   keys houses by their stable server id, so a rename is an in-place update and the
+   readings stay attached (R1, done). Deleting a house still cascades its readings,
+   by design.
 2. **An issued invoice is immutable.** Its amount and invoice number do not change
    after issue; corrections are new records, not edits.
-3. **Concurrent admin edits do not silently clobber each other.** The current
-   `PUT /api/admin/state` full-state sync is last-write-wins and assumes a single
-   admin in a single tab (Roadmap R2).
+3. **Concurrent admin edits do not silently clobber each other.** The state sync
+   carries a monotonic `state_version`; a save from a client that loaded an older
+   version is rejected (HTTP 409) and the latest state is returned, instead of
+   overwriting the newer data (R2, optimistic concurrency done). Migrating the
+   client to per-resource REST endpoints remains tracked under R2.
 4. **Money math is computed server-side** from stored readings/rates via the safe
    formula evaluator, and is reproducible for any past period.
 
@@ -107,11 +109,11 @@ Priority: P1 = before real resident data / wider rollout · P2 = soon · P3 = hy
 
 | # | Item | Pri | Status |
 |---|------|-----|--------|
-| R1 | House rename/renumber preserves reading history (data-integrity #1) | P1 | open |
-| R2 | Move admin edits to per-resource REST endpoints with per-row optimistic concurrency; retire full-state `PUT` | P2 | open |
-| H-2 | Rotate admin password | P1 | ops (runbook ready) |
-| H-3 | Attach DO Cloud Firewall | P1 | ops (runbook ready) |
-| M-3 | Mount encrypted Postgres volume | P2 | tooling ready, attach pending |
+| R1 | House rename/renumber preserves reading history (data-integrity #1) | P1 | **done** — state sync keyed by stable house id |
+| R2 | Optimistic concurrency on admin saves (done); migrate client to per-resource REST + retire full-state `PUT` (remaining) | P2 | partial — version guard done, REST migration open |
+| H-2 | Rotate admin password | P1 | **deferred (deliberate)** — ops |
+| H-3 | Attach DO Cloud Firewall | P1 | **deferred (deliberate)** — ops |
+| M-3 | Mount encrypted Postgres volume | P2 | **deferred (deliberate)** — tooling ready |
 | M-4 | Configure off-box encrypted backup cron | P2 | tooling ready, config pending |
 | M-5 | SSH hardening (`PermitRootLogin`, password auth) | P2 | ops |
 | L-2 | Reduce username enumeration on register | P3 | open |

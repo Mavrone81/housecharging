@@ -30,25 +30,30 @@ async function invoiceNumber(client, readingId, utility) {
   return number;
 }
 
+// Read the full admin state (settings + houses + readings with stable invoice
+// numbers) inside a transaction. Shared by /bootstrap and /state so the success
+// and conflict responses are always shaped identically.
+async function readState(client) {
+  const settings = (await client.query('SELECT * FROM settings WHERE id=1')).rows[0];
+  const houses = (await client.query('SELECT * FROM houses ORDER BY house_number')).rows;
+  const rrows = (await client.query('SELECT * FROM readings ORDER BY period DESC, id DESC')).rows;
+  const fees = feeMap(houses);
+  const readings = [];
+  for (const r of rrows) {
+    const inv = computeInvoice(r, settings, fees[r.house_id]);
+    const waterNo = await invoiceNumber(client, r.id, 'water');
+    const gasNo = await invoiceNumber(client, r.id, 'gas');
+    readings.push({ ...publicReading(r), ...inv, waterNo, gasNo });
+  }
+  return { settings, houses, readings };
+}
+
 // --- Bootstrap: everything the admin client needs in one call ---
 router.get('/bootstrap', async (_req, res, next) => {
   try {
-    const s = await getSettings();
-    const houses = (await query('SELECT * FROM houses ORDER BY house_number')).rows;
-    const readings = (await query('SELECT * FROM readings ORDER BY period DESC, id DESC')).rows;
     const owners = (await query('SELECT id, username, house_number, status, created_at FROM owners ORDER BY created_at')).rows;
-    const fees = feeMap(houses);
-    const withNums = await tx(async (client) => {
-      const list = [];
-      for (const r of readings) {
-        const inv = computeInvoice(r, s, fees[r.house_id]);
-        const waterNo = await invoiceNumber(client, r.id, 'water');
-        const gasNo = await invoiceNumber(client, r.id, 'gas');
-        list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
-      }
-      return list;
-    });
-    res.json({ settings: s, houses, readings: withNums, owners });
+    const state = await tx(readState);
+    res.json({ ...state, owners });
   } catch (e) { next(e); }
 });
 
@@ -237,35 +242,62 @@ router.put('/state', async (req, res, next) => {
     const b = req.body || {};
     const s = b.settings || {};
     const num = (v, d) => (v === undefined || v === null || v === '' ? d : Number(v));
+    const ovr = v => (v === undefined || v === null || v === '' ? null : Number(v));
+    const isId = v => /^\d+$/.test(String(v)); // a real (server-assigned) house id, not a client temp id
     const fw = typeof s.formulaWater === 'string' && isValidFormula(s.formulaWater) ? s.formulaWater : DEFAULT_FORMULA;
     const fg = typeof s.formulaGas === 'string' && isValidFormula(s.formulaGas) ? s.formulaGas : DEFAULT_FORMULA;
 
     const out = await tx(async (client) => {
+      // Optimistic concurrency (R2): lock the singleton settings row and reject the
+      // write if another session saved after this client loaded its state, rather
+      // than silently overwriting it. The fresh state is returned with the 409.
+      const cur = (await client.query('SELECT state_version FROM settings WHERE id=1 FOR UPDATE')).rows[0];
+      const curVer = cur?.state_version ?? 0;
+      if (b.baseVersion !== undefined && b.baseVersion !== null && Number(b.baseVersion) !== curVer) {
+        return { conflict: true, ...(await readState(client)) };
+      }
+
       await client.query(
         `UPDATE settings SET community_name=$1, address=$2, logo=$3, currency=$4,
            water_rate=$5, water_fixed=$6, gas_rate=$7, gas_fixed=$8,
            formula_water=$9, formula_gas=$10, promptpay_qr=$11, garbage_fee=$12, service_fee=$13,
-           updated_at=now() WHERE id=1`,
+           state_version=state_version+1, updated_at=now() WHERE id=1`,
         [s.communityName || 'MCTS', s.address || '', s.logo ?? null, s.currency || 'THB',
          num(s.waterRate, 0), num(s.waterFixed, 0), num(s.gasRate, 0), num(s.gasFixed, 0), fw, fg,
          s.promptPayQr ?? null, num(s.garbageFee, 0), num(s.serviceFee, 0)]);
 
+      // Houses are keyed by their STABLE id when the client supplies one, so
+      // renaming/renumbering a house is an in-place UPDATE — its readings stay
+      // attached via house_id. Previously houses were keyed by house_number and a
+      // renamed house fell out of the keep-list and was deleted, dropping its
+      // readings through ON DELETE CASCADE (R1). New houses (temp/no id) still
+      // insert, tolerating a clashing house_number.
       const houses = Array.isArray(b.houses) ? b.houses : [];
-      const keep = [];
+      const keepIds = [];
       const idByNo = {};
-      const ovr = v => (v === undefined || v === null || v === '' ? null : Number(v));
       for (const h of houses) {
         if (!h.houseNumber) continue;
-        const r = await client.query(
-          `INSERT INTO houses (cluster, house_number, owner_name, garbage_fee, service_fee) VALUES ($1,$2,$3,$4,$5)
-           ON CONFLICT (house_number) DO UPDATE SET cluster=EXCLUDED.cluster, owner_name=EXCLUDED.owner_name,
-             garbage_fee=EXCLUDED.garbage_fee, service_fee=EXCLUDED.service_fee
-           RETURNING id, house_number`,
-          [h.cluster || '', h.houseNumber, h.ownerName || '', ovr(h.garbageFee), ovr(h.serviceFee)]);
-        keep.push(r.rows[0].house_number);
-        idByNo[String(r.rows[0].house_number).toLowerCase()] = r.rows[0].id;
+        let row = null;
+        if (isId(h.id)) {
+          const u = await client.query(
+            `UPDATE houses SET cluster=$1, house_number=$2, owner_name=$3, garbage_fee=$4, service_fee=$5
+             WHERE id=$6 RETURNING id, house_number`,
+            [h.cluster || '', h.houseNumber, h.ownerName || '', ovr(h.garbageFee), ovr(h.serviceFee), Number(h.id)]);
+          row = u.rows[0] || null;
+        }
+        if (!row) {
+          const i = await client.query(
+            `INSERT INTO houses (cluster, house_number, owner_name, garbage_fee, service_fee) VALUES ($1,$2,$3,$4,$5)
+             ON CONFLICT (house_number) DO UPDATE SET cluster=EXCLUDED.cluster, owner_name=EXCLUDED.owner_name,
+               garbage_fee=EXCLUDED.garbage_fee, service_fee=EXCLUDED.service_fee
+             RETURNING id, house_number`,
+            [h.cluster || '', h.houseNumber, h.ownerName || '', ovr(h.garbageFee), ovr(h.serviceFee)]);
+          row = i.rows[0];
+        }
+        keepIds.push(row.id);
+        idByNo[String(row.house_number).toLowerCase()] = row.id;
       }
-      if (keep.length) await client.query('DELETE FROM houses WHERE NOT (house_number = ANY($1::text[]))', [keep]);
+      if (keepIds.length) await client.query('DELETE FROM houses WHERE NOT (id = ANY($1::int[]))', [keepIds]);
       else await client.query('DELETE FROM houses');
 
       const readings = Array.isArray(b.readings) ? b.readings : [];
@@ -284,20 +316,14 @@ router.put('/state', async (req, res, next) => {
           [hid, r.period, wp, wc, gp, gc]);
       }
 
-      const settings = (await client.query('SELECT * FROM settings WHERE id=1')).rows[0];
-      const hrows = (await client.query('SELECT * FROM houses ORDER BY house_number')).rows;
-      const rrows = (await client.query('SELECT * FROM readings ORDER BY period DESC, id DESC')).rows;
-      const fees = feeMap(hrows);
-      const list = [];
-      for (const r of rrows) {
-        const inv = computeInvoice(r, settings, fees[r.house_id]);
-        const waterNo = await invoiceNumber(client, r.id, 'water');
-        const gasNo = await invoiceNumber(client, r.id, 'gas');
-        list.push({ ...publicReading(r), ...inv, waterNo, gasNo });
-      }
-      return { settings, houses: hrows, readings: list };
+      return { conflict: false, ...(await readState(client)) };
     });
-    res.json(out);
+
+    const { conflict, ...state } = out;
+    if (conflict) {
+      return res.status(409).json({ error: 'State was changed by another session; latest data reloaded.', ...state });
+    }
+    res.json(state);
   } catch (e) { next(e); }
 });
 

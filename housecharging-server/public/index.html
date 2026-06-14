@@ -523,7 +523,7 @@ let db = {
   settings:{logo:null, communityName:'MCTS', address:'', promptPayQr:null},
   rates:{currency:'THB', waterRate:18, waterFixed:30, gasRate:25, gasFixed:20, garbageFee:0, serviceFee:0},
   formula:{water:DEFAULT_FORMULA, gas:DEFAULT_FORMULA},
-  houses:[], readings:[], owners:[],
+  houses:[], readings:[], owners:[], stateVersion:0,
 };
 // Per-house fee override: null = inherit the community default.
 const normHouse = h => ({ id:String(h.id), cluster:h.cluster||'', houseNumber:h.house_number, ownerName:h.owner_name||'',
@@ -533,6 +533,7 @@ const normReading = r => ({ id:String(r.id), houseId:String(r.house_id), period:
   waterNo:r.waterNo, gasNo:r.gasNo, paid:!!r.paid, paidAt:r.paid_at||null, hasProof:!!r.hasProof });
 const normOwner = o => ({ id:String(o.id), username:o.username, houseNumber:o.house_number, status:o.status });
 function applySettings(s){
+  db.stateVersion=Number(s.state_version)||0;
   db.settings={ logo:s.logo||null, communityName:s.community_name||'MCTS', address:s.address||'', promptPayQr:s.promptpay_qr||null,
     maxLoginAttempts:Number(s.max_login_attempts)||5, lockoutMinutes:Number(s.login_lockout_minutes)||15 };
   db.rates={ currency:s.currency||'THB', waterRate:Number(s.water_rate), waterFixed:Number(s.water_fixed), gasRate:Number(s.gas_rate), gasFixed:Number(s.gas_fixed), garbageFee:Number(s.garbage_fee)||0, serviceFee:Number(s.service_fee)||0 };
@@ -567,12 +568,17 @@ let _saveTimer=null;
 function buildState(){
   const idToNo=Object.fromEntries(db.houses.map(h=>[h.id, h.houseNumber]));
   return {
+    // Last state version this client loaded; the server rejects the save (409) if
+    // another session has saved since, instead of silently clobbering it.
+    baseVersion: db.stateVersion,
     settings:{ communityName:db.settings.communityName, address:db.settings.address, logo:db.settings.logo,
       promptPayQr:db.settings.promptPayQr,
       currency:db.rates.currency, waterRate:db.rates.waterRate, waterFixed:db.rates.waterFixed,
       gasRate:db.rates.gasRate, gasFixed:db.rates.gasFixed, formulaWater:db.formula.water, formulaGas:db.formula.gas,
       garbageFee:db.rates.garbageFee, serviceFee:db.rates.serviceFee },
-    houses: db.houses.map(h=>({ cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName,
+    // Send the stable server id for existing houses so a rename is an in-place
+    // update that keeps the house's readings (temp ids for new houses are omitted).
+    houses: db.houses.map(h=>({ id:(/^\d+$/.test(h.id)?h.id:undefined), cluster:h.cluster, houseNumber:h.houseNumber, ownerName:h.ownerName,
       garbageFee:(h.garbageFee==null||h.garbageFee===''?null:h.garbageFee), serviceFee:(h.serviceFee==null||h.serviceFee===''?null:h.serviceFee) })),
     readings: db.readings.map(r=>({ houseNumber:idToNo[r.houseId]||r.houseNumber, period:r.period,
       waterPrev:r.waterPrev, waterCurr:r.waterCurr, gasPrev:r.gasPrev, gasCurr:r.gasCurr })),
@@ -584,7 +590,13 @@ function save(){
   _saveTimer=setTimeout(async ()=>{
     try{ const d=await api('/api/admin/state',{method:'PUT',body:buildState()});
       if(d&&d.houses){ db.houses=d.houses.map(normHouse); db.readings=d.readings.map(normReading); applySettings(d.settings); }
-    }catch(e){ console.error('save failed',e); alert('Could not save to the server: '+e.message); }
+    }catch(e){
+      if(e.status===409 && e.data && e.data.houses){ // another session saved first — reload the latest instead of overwriting it
+        db.houses=e.data.houses.map(normHouse); db.readings=e.data.readings.map(normReading); applySettings(e.data.settings);
+        renderAdminBody();
+        alert('Your latest change was not saved: another session updated the data. The current data has been reloaded — please re-apply your change.');
+      } else { console.error('save failed',e); alert('Could not save to the server: '+e.message); }
+    }
   }, 350);
 }
 // Branding (name/address/logo/PromptPay QR) saves via the dedicated, lightweight

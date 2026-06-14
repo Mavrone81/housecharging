@@ -95,6 +95,12 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS service_fee NUMERIC NOT NULL DEFAU
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS max_login_attempts    INTEGER NOT NULL DEFAULT 5;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS login_lockout_minutes INTEGER NOT NULL DEFAULT 15;
 
+-- Monotonic version of the whole admin state, bumped on every state-sync write.
+-- The client sends the version it last loaded; a mismatch means another session
+-- saved in between, so the write is rejected (optimistic concurrency) instead of
+-- silently clobbering the other admin's changes.
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS state_version INTEGER NOT NULL DEFAULT 0;
+
 -- Seed the singleton settings row so the app's UPDATE ... WHERE id=1 always has a target.
 INSERT INTO settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 

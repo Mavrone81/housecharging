@@ -93,6 +93,54 @@ try {
   r = await J('/api/admin/state', { method: 'PUT', body: { settings: {}, houses: [], readings: [] } });
   ok(r.status === 401, 'unauthenticated state sync blocked');
 
+  // 4a. R1: renaming/renumbering a house preserves its reading history.
+  {
+    const boot = (await J('/api/admin/bootstrap', { token: adminToken })).data;
+    const house = boot.houses.find(h => h.house_number === 'A-101');
+    ok(!!house && boot.readings.length === 1, 'R1 setup: A-101 has a reading');
+    const settings = { communityName: 'Charoensap', address: 'Moo 7', currency: 'THB',
+      waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+      formulaWater: '(curr - prev) * rate + fixed', formulaGas: '(curr - prev) * rate' };
+    // Save the SAME house by its stable id but with a new house_number, and reference
+    // the reading by the new number (as the client would after a rename).
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+      baseVersion: boot.settings.state_version,
+      settings,
+      houses: [{ id: house.id, cluster: 'Zone A', houseNumber: 'A-999', ownerName: 'Somchai' }],
+      readings: [{ houseNumber: 'A-999', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+    }});
+    ok(r.status === 200 && r.data.houses.length === 1 && r.data.houses[0].house_number === 'A-999',
+      'R1: house renamed A-101 -> A-999 (no duplicate house)');
+    ok(r.data.houses[0].id === house.id, 'R1: rename kept the same house id (in-place update)');
+    ok(r.data.readings.length === 1 && Number(r.data.readings[0].water_curr) === 152,
+      'R1: the reading survived the rename');
+    // Rename back so later steps still find A-101.
+    const ver = r.data.settings.state_version;
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: {
+      baseVersion: ver, settings,
+      houses: [{ id: house.id, cluster: 'Zone A', houseNumber: 'A-101', ownerName: 'Somchai' }],
+      readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }],
+    }});
+    ok(r.status === 200 && r.data.readings.length === 1, 'R1: renamed back to A-101, reading intact');
+  }
+
+  // 4b. R2: optimistic concurrency — a save with a stale baseVersion is rejected (409)
+  // and returns the current state, instead of silently clobbering the newer data.
+  {
+    const cur = (await J('/api/admin/bootstrap', { token: adminToken })).data.settings.state_version;
+    const body = (ver) => ({ baseVersion: ver,
+      settings: { communityName: 'Charoensap', address: 'Moo 7', currency: 'THB',
+        waterRate: 18, waterFixed: 30, gasRate: 25, gasFixed: 20,
+        formulaWater: '(curr - prev) * rate + fixed', formulaGas: '(curr - prev) * rate' },
+      houses: [{ houseNumber: 'A-101', ownerName: 'Somchai' }],
+      readings: [{ houseNumber: 'A-101', period: '2026-04', waterPrev: 135, waterCurr: 152, gasPrev: 48, gasCurr: 55 }] });
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: body(cur) });
+    ok(r.status === 200 && r.data.settings.state_version === cur + 1, 'R2: in-sync save bumps state_version');
+    // Replaying the now-stale version must conflict.
+    r = await J('/api/admin/state', { method: 'PUT', token: adminToken, body: body(cur) });
+    ok(r.status === 409 && r.data.houses, 'R2: stale save rejected with 409 + current state');
+  }
+
   // 5. owner registration -> pending -> cannot log in yet
   r = await J('/api/auth/owner/register', { method: 'POST', body: { username: 'res1', password: 'pw123456', houseNumber: 'A-101' } });
   ok(r.status === 201, 'owner registered (pending)');
