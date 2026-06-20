@@ -42,3 +42,38 @@ jobs:
       # Fail the build on a known vulnerability in a production dependency
       # (VAPT recommendation 13: periodic npm audit).
       - run: npm audit --omit=dev --audit-level=high
+
+  # On success, push a marker ref the server's deploy gate reads over the git
+  # protocol (no REST API -> no rate limit, no secrets). The server-side
+  # auto-deploy script only advances when the marker for the exact target
+  # commit exists, so a red build simply never gets deployed. Runs only for
+  # main, only after BOTH the test matrix and the audit pass.
+  ci-pass-marker:
+    name: Publish CI-pass marker
+    needs: [test, audit]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .          # operate at repo root, not housecharging-server
+    permissions:
+      contents: write                 # required to push refs/ci-pass/* with the built-in GITHUB_TOKEN
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25             # enough history to prune markers by recent commits
+      - name: Push marker + prune old markers
+        run: |
+          set -euo pipefail
+          # Marker for THIS commit (must succeed — surfaces a permissions issue loudly).
+          git push origin "HEAD:refs/ci-pass/${GITHUB_SHA}"
+          echo "pushed refs/ci-pass/${GITHUB_SHA}"
+          # Prune: keep only markers whose sha is in the last 20 commits of main.
+          recent="$(git rev-list -n 20 "$GITHUB_SHA" | tr '\n' ' ')"
+          git ls-remote origin 'refs/ci-pass/*' | awk '{print $2}' | while read -r ref; do
+            sha="${ref#refs/ci-pass/}"
+            case " $recent " in
+              *" $sha "*) : ;;                          # keep — recent
+              *) git push origin --delete "$ref" || true; echo "pruned $ref" ;;
+            esac
+          done
