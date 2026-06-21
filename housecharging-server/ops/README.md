@@ -3,6 +3,32 @@
 Deployment-specific facts that aren't obvious from the application code. The app
 itself is documented in the top-level `README.md`.
 
+## CI/CD & zero-downtime deploys
+Push to `main` → GitHub Actions runs the test matrix + `npm audit`, then the
+`ci-pass-marker` job pushes `refs/ci-pass/<sha>` (built-in token, no secrets). A
+per-minute root cron runs `/root/auto-deploy-housecharging.sh` under `flock`
+(canonical copy: `deploy/auto-deploy-housecharging.sh` — re-copy to `/root/` after
+editing; the cron runs the installed copy).
+
+The deploy is **blue/green** for zero downtime:
+- Two app colors are defined in compose: `app-blue` (:3010) and `app-green` (:3011).
+  Only one serves at a time.
+- host nginx proxies `mcts.urbanwerkzsg.com` to `upstream housecharging_app`, whose
+  member is the single line in `/etc/nginx/snippets/housecharging-active-upstream.conf`
+  (`server 127.0.0.1:3010;` or `:3011;`).
+- On a new CI-passed commit the script: `git reset --hard origin/main` → build &
+  start the **idle** color → health-check it on its own port → rewrite the include to
+  the idle port → `nginx -t` → `nginx -s reload` (graceful) → stop the old color.
+- No request is dropped: traffic only moves to a verified-healthy new color. If the
+  build or health check fails, the active color keeps serving and the next run
+  retries (the last *successfully flipped* sha is tracked in
+  `/root/.housecharging-deployed-sha`, not git HEAD).
+- Never runs `compose down`/`down -v`/`volume rm`; `.env` and the `pgdata` volume are
+  never touched; the db service is never rebuilt.
+
+To roll back: revert the commit on `main` (auto-deploys), or manually flip the
+include back and `nginx -s reload` + start the previous color.
+
 ## Runtime
 - Runs via `docker compose` on a DigitalOcean droplet (region sgp1).
 - App container is published to **127.0.0.1:3010** only; host **nginx** reverse-proxies

@@ -1,4 +1,37 @@
 # Local development: Postgres + the app. Run:  docker compose up --build
+# (locally just use app-blue on :3010).
+#
+# Production runs TWO app colors for zero-downtime deploys: app-blue (:3010) and
+# app-green (:3011). Only one color serves at a time; deploy/auto-deploy-
+# housecharging.sh starts the idle color, health-checks it, then flips host nginx
+# between the two ports gracefully. See ops/README.md → "Zero-downtime deploys".
+
+# Shared definition for both app colors — identical except the host port. The
+# deploy script runs only one color at a time during steady state. (Defined before
+# `services:` so the YAML anchor exists before app-blue/app-green reference it.)
+x-app-common: &app-common
+  build: .
+  restart: unless-stopped
+  # Runs as the unprivileged `node` user (see Dockerfile) and cannot gain new
+  # privileges (VAPT M-2).
+  security_opt:
+    - no-new-privileges:true
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    # All secrets come from the gitignored .env file (compose substitutes them here).
+    DATABASE_URL: postgres://mcts:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mcts
+    PGSSL: "false"
+    JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+    ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    SEED_DEMO: "true"
+    PORT: "3000"
+  # Migrations are idempotent/additive, so it is safe for the idle color to migrate
+  # on boot while the active color keeps serving.
+  command: sh -c "node src/migrate.js && node src/server.js"
+
 services:
   db:
     image: postgres:16-alpine
@@ -26,30 +59,18 @@ services:
       timeout: 5s
       retries: 10
 
-  app:
-    build: .
-    restart: unless-stopped
-    # Runs as the unprivileged `node` user (see Dockerfile) and cannot gain new
-    # privileges (VAPT M-2).
-    security_opt:
-      - no-new-privileges:true
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # All secrets come from the gitignored .env file (compose substitutes them here).
-      DATABASE_URL: postgres://mcts:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/mcts
-      PGSSL: "false"
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
-      SEED_DEMO: "true"
-      PORT: "3000"
-    # Bound to localhost only; nginx (host) reverse-proxies mcts.urbanwerkzsg.com here.
-    # Host port 3010 chosen because 3000 is taken by another service on this box.
+  app-blue:
+    <<: *app-common
+    # Bound to localhost only; host nginx reverse-proxies mcts.urbanwerkzsg.com to
+    # whichever color is active (blue=3010 / green=3011). 3000 is taken by another
+    # service on this box, so the host ports are 3010/3011.
     ports:
       - "127.0.0.1:3010:3000"
-    command: sh -c "node src/migrate.js && node src/server.js"
+
+  app-green:
+    <<: *app-common
+    ports:
+      - "127.0.0.1:3011:3000"
 
 volumes:
   # Postgres data (used unless the db service is switched to the encrypted bind mount
