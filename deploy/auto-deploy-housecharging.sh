@@ -45,6 +45,7 @@ NGINX_UPSTREAM_INC=/etc/nginx/snippets/housecharging-active-upstream.conf
 STATE_FILE=/root/.housecharging-deployed-sha
 BLUE_PORT=3010; BLUE_SVC=app-blue
 GREEN_PORT=3011; GREEN_SVC=app-green
+DRAIN_SECONDS=8          # let nginx's old workers finish in-flight/keepalive conns before stopping the old color
 TAG="[housecharging-deploy]"
 ts() { date '+%F %T'; }
 
@@ -121,10 +122,15 @@ if ! nginx -s reload 2>/dev/null; then
 fi
 echo "$(ts) $TAG nginx now routing mcts.urbanwerkzsg.com -> $IDLE_COLOR (:$IDLE_PORT)"
 
-# 7) Record success, then stop the old color & prune dangling images ----------
+# 7) Record success. Drain, THEN stop the old color & prune dangling images ----
+#    The drain delay lets nginx's pre-reload worker processes finish any in-flight
+#    or keepalive connections still bound to the old port before we release it —
+#    without it, stopping the old color can race a draining worker and 502 a
+#    single request.
 echo "$REMOTE" > "$STATE_FILE"
+sleep "$DRAIN_SECONDS"
 docker compose -f "$COMPOSE_FILE" stop "$ACTIVE_SVC" >/dev/null 2>&1
-echo "$(ts) $TAG stopped old color $ACTIVE_SVC(:$ACTIVE_PORT)"
+echo "$(ts) $TAG drained ${DRAIN_SECONDS}s, stopped old color $ACTIVE_SVC(:$ACTIVE_PORT)"
 docker image prune -f >/dev/null 2>&1
 
 # 8) Final end-to-end health check through nginx ------------------------------
