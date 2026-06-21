@@ -414,6 +414,28 @@ router.post('/owners/:id/password', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Admin edits an owner's account data (username, house number, status).
+// (Defined before /:action so the literal PUT route isn't affected by the action map.)
+router.put('/owners/:id', async (req, res, next) => {
+  try {
+    const { username, houseNumber, status } = req.body || {};
+    if (!username || !houseNumber)
+      return res.status(400).json({ error: 'Username and house number are required' });
+    const allowed = ['pending', 'approved', 'rejected'];
+    if (status !== undefined && !allowed.includes(status))
+      return res.status(400).json({ error: 'Unknown status' });
+    const clash = await query(
+      'SELECT 1 FROM owners WHERE lower(username)=lower($1) AND id<>$2', [username, req.params.id]);
+    if (clash.rows.length) return res.status(409).json({ error: 'Username already taken' });
+    const { rows } = await query(
+      `UPDATE owners SET username=$1, house_number=$2, status=COALESCE($3, status)
+       WHERE id=$4 RETURNING id, username, house_number, status, created_at`,
+      [username, houseNumber, status ?? null, req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Owner not found' });
+    res.json(rows[0]);
+  } catch (e) { next(e); }
+});
+
 router.post('/owners/:id/:action', async (req, res, next) => {
   try {
     const map = { approve: 'approved', reject: 'rejected' };

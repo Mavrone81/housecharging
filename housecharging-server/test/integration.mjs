@@ -251,6 +251,37 @@ try {
   r = await J(`/api/admin/owners/${ownerId}/password`, { method: 'POST', token: adminToken, body: { password: 'longenough1' } });
   ok(r.status === 200, 'admin password-reset accepts an 8+ char password');
 
+  // 8c. admin edits owner data (username, house, status) via PUT /owners/:id
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken,
+    body: { username: 'res1edited', houseNumber: 'B-202', status: 'pending' } });
+  ok(r.status === 200 && r.data.username === 'res1edited' && r.data.house_number === 'B-202' && r.data.status === 'pending',
+    'admin edits owner username/house/status');
+  // missing required fields rejected
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken, body: { username: 'res1edited' } });
+  ok(r.status === 400, 'owner edit requires username and house number');
+  // invalid status rejected
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken,
+    body: { username: 'res1edited', houseNumber: 'B-202', status: 'bogus' } });
+  ok(r.status === 400, 'owner edit rejects an unknown status');
+  // unknown owner -> 404
+  r = await J('/api/admin/owners/999999', { method: 'PUT', token: adminToken,
+    body: { username: 'ghost', houseNumber: 'A-101' } });
+  ok(r.status === 404, 'owner edit on unknown id returns 404');
+  // username clash with another owner -> 409
+  await J('/api/admin/owners', { method: 'POST', token: adminToken,
+    body: { username: 'res2', password: 'pw9876543', houseNumber: 'A-101' } });
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken,
+    body: { username: 'res2', houseNumber: 'B-202' } });
+  ok(r.status === 409, 'owner edit rejects a username already taken by another owner');
+  // omitting status leaves it unchanged (still pending from the edit above)
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken,
+    body: { username: 'res1', houseNumber: 'A-101' } });
+  ok(r.status === 200 && r.data.status === 'pending', 'owner edit without status keeps the current status');
+  // restore res1 to approved/A-101 so later steps are unaffected
+  r = await J(`/api/admin/owners/${ownerId}`, { method: 'PUT', token: adminToken,
+    body: { username: 'res1', houseNumber: 'A-101', status: 'approved' } });
+  ok(r.status === 200 && r.data.status === 'approved', 'owner edit restores res1 to approved');
+
   // 9. brute-force lockout (H-1): admin-configurable threshold, default-style behaviour
   await resetGuard();
   r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 3, lockoutMinutes: 15 } });

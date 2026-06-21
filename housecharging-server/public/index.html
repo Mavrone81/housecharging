@@ -315,6 +315,7 @@ const I18N = {
     noPending:"No registration requests.", noMatchHouse:"No matching house",
     approvedMsg:"Owner approved.", rejectedMsg:"Request rejected.",
     addUser:"Add owner account", addUserSub:"Create an owner login directly — it's approved immediately.", create:"Create", resetPw:"Reset password", userCreated:"Owner account created.", pwReset:"Password reset.", newPwFor:"Enter a new password for",
+    editUser:"Edit owner account", editUserSub:"Update this owner's username, house or status.", userUpdated:"Owner account updated.",
     tPayments:"Payments", paymentsTitle:"Payment Tracking", paymentsSub:"Confirm payment for each month, mark it paid, and keep the proof of payment.", paid:"Paid", unpaid:"Unpaid", allStatuses:"All statuses", markPaid:"Mark as paid", markUnpaid:"Mark as unpaid", uploadProof:"Upload proof", viewProof:"View proof", proof:"Proof", proofTitle:"Proof of payment", proofSaved:"Proof saved — marked as paid.", paidMsg:"Marked as paid.", unpaidMsg:"Marked as unpaid.", viewReceipt:"View receipt",
     allInvoices:"All Invoices", invoicesSub:"Every calculated statement across the community.",
     filterPeriod:"Period", allPeriods:"All periods", noInvoices:"No invoices for this selection.",
@@ -388,6 +389,7 @@ const I18N = {
     noPending:"暂无注册申请。", noMatchHouse:"无匹配房屋",
     approvedMsg:"业主已通过审核。", rejectedMsg:"申请已拒绝。",
     addUser:"新增业主账号", addUserSub:"直接创建业主登录账号——立即通过审核。", create:"创建", resetPw:"重置密码", userCreated:"业主账号已创建。", pwReset:"密码已重置。", newPwFor:"请输入新密码：",
+    editUser:"编辑业主账号", editUserSub:"更新该业主的用户名、房屋或状态。", userUpdated:"业主账号已更新。",
     tPayments:"收款", paymentsTitle:"收款跟踪", paymentsSub:"确认每月付款、标记为已付，并保存付款凭证。", paid:"已付款", unpaid:"未付款", allStatuses:"全部状态", markPaid:"标记为已付", markUnpaid:"标记为未付", uploadProof:"上传凭证", viewProof:"查看凭证", proof:"凭证", proofTitle:"付款凭证", proofSaved:"凭证已保存——已标记为已付。", paidMsg:"已标记为已付。", unpaidMsg:"已标记为未付。", viewReceipt:"查看凭证",
     allInvoices:"全部账单", invoicesSub:"社区内所有已计算的账单。",
     filterPeriod:"周期", allPeriods:"全部周期", noInvoices:"该筛选条件下暂无账单。",
@@ -461,6 +463,7 @@ const I18N = {
     noPending:"ไม่มีคำขอลงทะเบียน", noMatchHouse:"ไม่พบบ้านที่ตรงกัน",
     approvedMsg:"อนุมัติเจ้าของบ้านแล้ว", rejectedMsg:"ปฏิเสธคำขอแล้ว",
     addUser:"เพิ่มบัญชีเจ้าของบ้าน", addUserSub:"สร้างบัญชีเข้าสู่ระบบให้เจ้าของบ้านโดยตรง — อนุมัติทันที", create:"สร้าง", resetPw:"รีเซ็ตรหัสผ่าน", userCreated:"สร้างบัญชีเจ้าของบ้านแล้ว", pwReset:"รีเซ็ตรหัสผ่านแล้ว", newPwFor:"กรอกรหัสผ่านใหม่สำหรับ",
+    editUser:"แก้ไขบัญชีเจ้าของบ้าน", editUserSub:"แก้ไขชื่อผู้ใช้ บ้าน หรือสถานะของเจ้าของบ้านรายนี้", userUpdated:"อัปเดตบัญชีเจ้าของบ้านแล้ว",
     tPayments:"การชำระเงิน", paymentsTitle:"ติดตามการชำระเงิน", paymentsSub:"ยืนยันการชำระเงินแต่ละเดือน ทำเครื่องหมายว่าชำระแล้ว และเก็บหลักฐานการชำระเงิน", paid:"ชำระแล้ว", unpaid:"ยังไม่ชำระ", allStatuses:"ทุกสถานะ", markPaid:"ทำเครื่องหมายว่าชำระแล้ว", markUnpaid:"ทำเครื่องหมายว่ายังไม่ชำระ", uploadProof:"อัปโหลดหลักฐาน", viewProof:"ดูหลักฐาน", proof:"หลักฐาน", proofTitle:"หลักฐานการชำระเงิน", proofSaved:"บันทึกหลักฐานแล้ว — ทำเครื่องหมายว่าชำระแล้ว", paidMsg:"ทำเครื่องหมายว่าชำระแล้ว", unpaidMsg:"ทำเครื่องหมายว่ายังไม่ชำระ", viewReceipt:"ดูใบเสร็จ",
     allInvoices:"ใบแจ้งหนี้ทั้งหมด", invoicesSub:"ใบแจ้งหนี้ที่คำนวณแล้วทั้งหมดในชุมชน",
     filterPeriod:"รอบ", allPeriods:"ทุกรอบ", noInvoices:"ไม่มีใบแจ้งหนี้ตามที่เลือก",
@@ -784,7 +787,7 @@ function bindLanding(){
 }
 
 /* ===================== ADMIN ===================== */
-let adminTab='dash', editHouseId=null;
+let adminTab='dash', editHouseId=null, editOwnerId=null;
 const ADMIN_NAV=[['dash','nav_dash','home'],['houses','tHouses','house'],['rates','tRates','rates'],['readings','tReadings','meter'],['invoices','tInvoices','invoice'],['payments','tPayments','rates'],['approvals','tApprovals','approve'],['settings','nav_settings','gear']];
 function viewAdmin(){
   const pendingCount=db.owners.filter(o=>o.status==='pending').length;
@@ -822,7 +825,7 @@ function viewAdmin(){
 }
 function bindAdmin(){
   bindLang();
-  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=async ()=>{adminTab=b.dataset.tab;editHouseId=null; if(adminTab==='approvals') await refreshOwners(); render();});
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=async ()=>{adminTab=b.dataset.tab;editHouseId=null;editOwnerId=null; if(adminTab==='approvals') await refreshOwners(); render();});
   ['logoutBtn','logoutBtnM','logoutBtnT'].forEach(id=>{const e=document.getElementById(id); if(e)e.onclick=doLogout;});
   renderAdminBody();
 }
@@ -1218,19 +1221,25 @@ function adminApprovals(){
   const rows=list.length?list.map(o=>{
     const match=houseByNumber(o.houseNumber);
     const approveBtns=o.status==='pending'?`<button class="btn ok sm" data-ap="${o.id}">${t('approve')}</button> <button class="btn danger sm" data-rj="${o.id}">${t('reject')}</button> `:'';
-    const act=`${approveBtns}<button class="btn ghost sm" data-pw="${o.id}" data-pwuser="${esc(o.username)}">${t('resetPw')}</button>`;
+    const act=`${approveBtns}<button class="btn ghost sm" data-eo="${o.id}">${t('edit')}</button> <button class="btn ghost sm" data-pw="${o.id}" data-pwuser="${esc(o.username)}">${t('resetPw')}</button>`;
     return `<tr><td><div class="util-cell"><span class="user-av" style="width:30px;height:30px">${initials(o.username)}</span><strong>${esc(o.username)}</strong></div></td>
       <td>${esc(o.houseNumber)} ${match?'':'<span class="pill warn">'+t('noMatchHouse')+'</span>'}</td>
       <td><span class="pill ${o.status}">${t(o.status)}</span></td><td class="right nowrap">${act}</td></tr>`;}).join('')
     :`<tr><td colspan="4"><div class="empty"><div class="ei">${svg('approve')}</div>${t('noPending')}</div></td></tr>`;
   const houseOpts=db.houses.map(h=>`<option value="${esc(h.houseNumber)}">`).join('');
-  return `<div class="card"><h2>${t('addUser')}</h2><p class="sub">${t('addUserSub')}</p>
+  const eo = editOwnerId ? db.owners.find(o=>o.id===editOwnerId) : null;
+  const statusOpts=['pending','approved','rejected'].map(s=>`<option value="${s}"${eo&&eo.status===s?' selected':''}>${t(s)}</option>`).join('');
+  return `<div class="card"><h2>${eo?t('editUser'):t('addUser')}</h2><p class="sub">${eo?t('editUserSub'):t('addUserSub')}</p>
     <div class="rowflex">
-      <div class="field" style="margin:0"><label>${t('username')}</label><input id="nu_user" autocomplete="off"></div>
-      <div class="field" style="margin:0"><label>${t('password')}</label><input id="nu_pass" type="text" autocomplete="off"></div>
-      <div class="field" style="margin:0"><label>${t('requestedHouse')}</label><input id="nu_house" list="nu_houses" autocomplete="off" placeholder="A-101"><datalist id="nu_houses">${houseOpts}</datalist></div>
+      <div class="field" style="margin:0"><label>${t('username')}</label><input id="nu_user" autocomplete="off" value="${eo?esc(eo.username):''}"></div>
+      ${eo?'':`<div class="field" style="margin:0"><label>${t('password')}</label><input id="nu_pass" type="text" autocomplete="off"></div>`}
+      <div class="field" style="margin:0"><label>${t('requestedHouse')}</label><input id="nu_house" list="nu_houses" autocomplete="off" placeholder="A-101" value="${eo?esc(eo.houseNumber):''}"><datalist id="nu_houses">${houseOpts}</datalist></div>
+      ${eo?`<div class="field" style="margin:0"><label>${t('status')}</label><select id="nu_status">${statusOpts}</select></div>`:''}
     </div>
-    <div style="display:flex;gap:10px;margin-top:14px"><button class="btn primary" id="nu_create">${svg('plus','icn sm')} ${t('create')}</button></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn primary" id="nu_create">${svg('plus','icn sm')} ${eo?t('save'):t('create')}</button>
+      ${eo?`<button class="btn ghost" id="nu_cancel">${t('cancel')}</button>`:''}
+    </div>
     <div id="numsg"></div></div>
   <div class="card"><h2>${t('approvalsTitle')}</h2><p class="sub">${t('approvalsSub')}</p>
     <div class="tbl-wrap"><table><thead><tr><th>${t('username')}</th><th>${t('requestedHouse')}</th><th>${t('status')}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div id="apmsg"></div></div>`;
@@ -1254,11 +1263,23 @@ function bindApprovals(){
       const m=document.getElementById('apmsg'); if(m)m.innerHTML=`<div class="notice ok">${t('pwReset')}</div>`;
     }catch(e){ alert(e.message); }
   });
+  document.querySelectorAll('[data-eo]').forEach(b=>b.onclick=()=>{editOwnerId=b.dataset.eo;renderAdminBody();window.scrollTo({top:0,behavior:'smooth'});});
+  const cancel=document.getElementById('nu_cancel');
+  if(cancel) cancel.onclick=()=>{editOwnerId=null;renderAdminBody();};
   const create=document.getElementById('nu_create');
   if(create) create.onclick=async ()=>{
     const $=id=>document.getElementById(id);
-    const username=$('nu_user').value.trim(), password=$('nu_pass').value, houseNumber=$('nu_house').value.trim();
+    const username=$('nu_user').value.trim(), houseNumber=$('nu_house').value.trim();
     const msg=$('numsg');
+    if(editOwnerId){
+      if(!username||!houseNumber){ msg.innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
+      const status=$('nu_status').value;
+      try{ await api('/api/admin/owners/'+editOwnerId,{method:'PUT',body:{username,houseNumber,status}}); editOwnerId=null; await refreshOwners(); renderAdminBody();
+        setTimeout(()=>{const m=document.getElementById('apmsg');if(m)m.innerHTML=`<div class="notice ok">${t('userUpdated')}</div>`;},0);
+      }catch(e){ msg.innerHTML=`<div class="notice err">${esc(e.message)}</div>`; }
+      return;
+    }
+    const password=$('nu_pass').value;
     if(!username||!password||!houseNumber){ msg.innerHTML=`<div class="notice err">${t('fillAll')}</div>`; return; }
     if(password.length<8){ msg.innerHTML=`<div class="notice err">${t('pwTooShort')}</div>`; return; }
     try{ await api('/api/admin/owners',{method:'POST',body:{username,password,houseNumber}}); await refreshOwners(); renderAdminBody();
