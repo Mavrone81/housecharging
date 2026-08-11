@@ -33,8 +33,8 @@ const base = `http://localhost:${server.address().port}`;
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ok  ' + m); } else { fail++; console.log('  FAIL ' + m); } };
-const J = async (path, { method = 'GET', token, body } = {}) => {
-  const headers = { 'Content-Type': 'application/json' };
+const J = async (path, { method = 'GET', token, body, extraHeaders } = {}) => {
+  const headers = { 'Content-Type': 'application/json', ...(extraHeaders || {}) };
   if (token) headers.Authorization = 'Bearer ' + token;
   const res = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
   let data = null; try { data = await res.json(); } catch {}
@@ -311,6 +311,37 @@ try {
   r = await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 0, lockoutMinutes: 99999 } });
   ok(r.data.max_login_attempts === 1 && r.data.login_lockout_minutes === 1440,
     'security values clamped (attempts>=1, minutes<=1440)');
+
+  // 9b. The lockout key must not be forgeable, and must not be username-blind.
+  //
+  // Nginx builds X-Forwarded-For with $proxy_add_x_forwarded_for, which APPENDS
+  // the real peer to whatever the client already sent. Any guard that reads the
+  // FIRST entry is therefore reading a value the attacker chose, and can be
+  // walked straight through by sending a different fake address every request.
+  await resetGuard();
+  await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 3, lockoutMinutes: 15 } });
+  let spoofBlocked = false;
+  for (let i = 0; i < 6; i++) {
+    const rr = await J('/api/auth/admin/login', {
+      method: 'POST',
+      body: { username: 'admin', password: 'nope' },
+      extraHeaders: { 'X-Forwarded-For': `203.0.113.${i}` },
+    });
+    if (rr.status === 429) { spoofBlocked = true; break; }
+  }
+  ok(spoofBlocked, 'lockout cannot be bypassed by forging X-Forwarded-For');
+
+  // A lock on one username must not lock a different username from the same
+  // address: otherwise five wrong guesses at a known account lock out everyone.
+  await resetGuard();
+  await J('/api/admin/security', { method: 'PUT', token: adminToken, body: { maxLoginAttempts: 3, lockoutMinutes: 15 } });
+  for (let i = 0; i < 3; i++) {
+    await J('/api/auth/admin/login', { method: 'POST', body: { username: 'someone-else', password: 'nope' } });
+  }
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'someone-else', password: 'nope' } });
+  ok(r.status === 429, 'lockout: the guessed username is locked');
+  r = await J('/api/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin123' } });
+  ok(r.status === 200 && r.data.token, 'lockout on one username does not lock another from the same IP');
 
   // 10. admin can see and release lockouts
   await resetGuard();

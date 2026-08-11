@@ -28,19 +28,20 @@ function lockedResponse(res, secs) {
 // Admin login
 router.post('/admin/login', async (req, res, next) => {
   try {
-    const locked = await lockoutRemaining('admin', req);
-    if (locked) return lockedResponse(res, locked);
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+    // Read the credentials first: the username is part of the lockout key now.
+    const locked = await lockoutRemaining('admin', username, req);
+    if (locked) return lockedResponse(res, locked);
     const { rows } = await query('SELECT * FROM admins WHERE username=$1', [username]);
     const admin = rows[0];
     if (!admin || !(await verifyPassword(password, admin.password_hash))) {
       const { maxAttempts, lockoutMs } = await loginConfig();
-      const { lockedFor } = await registerFailure('admin', req, maxAttempts, lockoutMs);
+      const { lockedFor } = await registerFailure('admin', username, req, maxAttempts, lockoutMs);
       if (lockedFor) return lockedResponse(res, lockedFor);
       return res.status(401).json({ error: 'Incorrect username or password' });
     }
-    await clearAttempts('admin', req);
+    await clearAttempts('admin', username, req);
     const token = signToken({ role: 'admin', id: admin.id, username: admin.username });
     res.json({ token, role: 'admin', username: admin.username });
   } catch (e) { next(e); }
@@ -49,21 +50,22 @@ router.post('/admin/login', async (req, res, next) => {
 // Owner login (only approved owners may sign in)
 router.post('/owner/login', async (req, res, next) => {
   try {
-    const locked = await lockoutRemaining('owner', req);
-    if (locked) return lockedResponse(res, locked);
     const { username, password } = req.body || {};
     if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+    // Read the credentials first: the username is part of the lockout key now.
+    const locked = await lockoutRemaining('owner', username, req);
+    if (locked) return lockedResponse(res, locked);
     const { rows } = await query('SELECT * FROM owners WHERE lower(username)=lower($1)', [username]);
     const owner = rows[0];
     if (!owner || !(await verifyPassword(password, owner.password_hash))) {
       const { maxAttempts, lockoutMs } = await loginConfig();
-      const { lockedFor } = await registerFailure('owner', req, maxAttempts, lockoutMs);
+      const { lockedFor } = await registerFailure('owner', username, req, maxAttempts, lockoutMs);
       if (lockedFor) return lockedResponse(res, lockedFor);
       return res.status(401).json({ error: 'Incorrect username or password' });
     }
     // Correct credentials — clear the counter before the approval-state checks
     // (a pending/rejected account is not a failed login).
-    await clearAttempts('owner', req);
+    await clearAttempts('owner', username, req);
     if (owner.status === 'pending') return res.status(403).json({ error: 'pending' });
     if (owner.status === 'rejected') return res.status(403).json({ error: 'rejected' });
     const token = signToken({ role: 'owner', id: owner.id, username: owner.username, houseNumber: owner.house_number });

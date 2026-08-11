@@ -1376,7 +1376,7 @@ function bindSettings(){
     if(!list.length){ box.innerHTML=`<p class="help" style="margin:0">${t('noLocked')}</p>`; return; }
     const rows=list.map(l=>{ const mins=Math.max(1,Math.ceil(l.retryAfter/60));
       return `<div class="rowflex" style="align-items:center;gap:10px;margin-top:8px">
-        <div style="flex:1;min-width:160px"><strong>${esc(l.ip)}</strong> <span class="pill warn">${esc(l.scope)}</span>
+        <div style="flex:1;min-width:160px"><strong>${esc(l.ip)}</strong> <span class="pill warn">${esc(l.scope)}</span>${l.user ? ` <code style="font-size:12px;opacity:.75">${esc(l.user)}</code>` : ''}
           <span class="help" style="display:inline;margin-left:6px">${t('unlocksIn')} ~${mins} ${t('minShort')}</span></div>
         <button class="btn ghost sm" data-unlock="${esc(l.key)}">${svg('shield','icn sm')} ${t('unlock')}</button>
       </div>`; }).join('');
